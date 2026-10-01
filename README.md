@@ -2,6 +2,8 @@
 
 World map quiz in Turkish and English: find countries on the map, or name the one that is marked. Next.js 16, React 19, Tailwind 4, react-simple-maps; runs fully in the browser with no backend.
 
+Live: [kaandinc.com/country-quiz](https://kaandinc.com/country-quiz/) · write-up: [country quiz: a world map that tells you how wrong you were](https://kaandinc.com/posts/country-quiz)
+
 ## Features
 
 - **Modes:** country name, flag only, capital only, reverse (a country is marked in yellow, pick its name from four options), typed (type the marked country's name; accents, case and small typos are forgiven) or neighbours (click any country that borders the named one).
