@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { countries, type Continent } from "@/lib/countries";
-import { X, Check, Search, Settings } from "lucide-react";
+import { Check, Search } from "lucide-react";
+import { Modal } from "./modal";
 
 const CONTINENTS: Continent[] = [
   "Avrupa",
@@ -15,25 +16,14 @@ const CONTINENTS: Continent[] = [
 ];
 
 interface CountryListModalProps {
-  completedCountries: string[]; // alpha-3
-  includeSmallIslands: boolean;
-  onToggleSmallIslands: (value: boolean) => void;
-  showWrongAnswer: boolean;
-  onToggleShowWrongAnswer: (value: boolean) => void;
+  done: string[]; // alpha-3
+  playable: Set<string>;
   onClose: () => void;
 }
 
-export function CountryListModal({
-  completedCountries,
-  includeSmallIslands,
-  onToggleSmallIslands,
-  showWrongAnswer,
-  onToggleShowWrongAnswer,
-  onClose
-}: CountryListModalProps) {
+export function CountryListModal({ done, playable, onClose }: CountryListModalProps) {
   const [search, setSearch] = useState("");
   const [activeContinent, setActiveContinent] = useState<Continent | "Tümü">("Tümü");
-  const [showSettings, setShowSettings] = useState(false);
 
   const filtered = useMemo(() => {
     return countries.filter((c) => {
@@ -43,95 +33,8 @@ export function CountryListModal({
     });
   }, [search, activeContinent]);
 
-  // Count based on current filter setting
-  const activeCountries = includeSmallIslands
-    ? countries
-    : countries.filter(c => !c.isSmallIsland);
-  const completedCount = completedCountries.length;
-  const totalCount = activeCountries.length;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Tüm Ülkeler</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {completedCount} / {totalCount} tamamlandı
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`p-1.5 rounded-lg transition-colors ${showSettings
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              aria-label="Ayarlar"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Kapat"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Settings panel */}
-        {showSettings && (
-          <div className="px-5 py-3 border-b border-border bg-muted/30 shrink-0 flex flex-col gap-4">
-            {/* Small islands toggle */}
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">Küçük Adaları Dahil Et</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Haritada zor bulunan küçük ada ülkelerini oyuna dahil et
-                </p>
-              </div>
-              <button
-                onClick={() => onToggleSmallIslands(!includeSmallIslands)}
-                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${includeSmallIslands ? "bg-green-500" : "bg-muted"
-                  }`}
-                aria-label={includeSmallIslands ? "Küçük adaları kaldır" : "Küçük adaları ekle"}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${includeSmallIslands ? "translate-x-5" : "translate-x-0"
-                    }`}
-                />
-              </button>
-            </div>
-
-            {/* Show wrong answer toggle */}
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">Yanlış Cevapta Ülke Adını Göster</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Yanlış tıklamada hedef ülkenin adı ekranda görünsün
-                </p>
-              </div>
-              <button
-                onClick={() => onToggleShowWrongAnswer(!showWrongAnswer)}
-                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${showWrongAnswer ? "bg-green-500" : "bg-muted"
-                  }`}
-                aria-label={showWrongAnswer ? "Ulke adini gizle" : "Ulke adini goster"}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${showWrongAnswer ? "translate-x-5" : "translate-x-0"
-                    }`}
-                />
-              </button>
-            </div>
-          </div>
-        )}
-
+    <Modal title="Tüm Ülkeler" subtitle={`${done.length} / ${playable.size} tamamlandı`} onClose={onClose}>
         {/* Search */}
         <div className="px-5 pt-3 pb-2 shrink-0">
           <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
@@ -166,14 +69,14 @@ export function CountryListModal({
         <div className="overflow-y-auto flex-1 px-5 pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {filtered.map((country) => {
-              const done = completedCountries.includes(country.code);
-              const isExcluded = !includeSmallIslands && country.isSmallIsland;
+              const isDone = done.includes(country.code);
+              const isExcluded = !playable.has(country.code);
               return (
                 <div
                   key={country.code}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${isExcluded
                     ? "bg-muted/10 border-transparent opacity-40"
-                    : done
+                    : isDone
                       ? "bg-green-950/30 border-green-800/40"
                       : "bg-muted/30 border-transparent"
                     }`}
@@ -190,7 +93,7 @@ export function CountryListModal({
                     }}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${isExcluded ? "text-muted-foreground" : done ? "text-green-400" : "text-foreground"
+                    <p className={`text-sm font-medium truncate ${isExcluded ? "text-muted-foreground" : isDone ? "text-green-400" : "text-foreground"
                       }`}>
                       {country.name}
                       {country.isSmallIsland && (
@@ -199,7 +102,7 @@ export function CountryListModal({
                     </p>
                     <p className="text-xs text-muted-foreground">{country.continent}</p>
                   </div>
-                  {done && !isExcluded && <Check className="w-4 h-4 text-green-400 shrink-0" />}
+                  {isDone && !isExcluded && <Check className="w-4 h-4 text-green-400 shrink-0" />}
                   {isExcluded && <span className="text-xs text-muted-foreground">Hariç</span>}
                 </div>
               );
@@ -209,7 +112,6 @@ export function CountryListModal({
             <p className="text-center text-muted-foreground text-sm py-8">Sonuç bulunamadı.</p>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

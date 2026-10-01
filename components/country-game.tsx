@@ -6,8 +6,9 @@ import { countries, getFilteredCountries, shuffleArray } from "@/lib/countries";
 import { buildHintCircle, countryCenters } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
-import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X } from "lucide-react";
+import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
+import { SettingsModal } from "./settings-modal";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
 
@@ -25,6 +26,7 @@ export function CountryGame() {
   const [game, dispatch] = useReducer(reducer, null, () => newGame([], 0));
   const [ready, setReady] = useState(false);
   const [showCountryList, setShowCountryList] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
   const { includeSmallIslands, showWrongAnswer } = settings;
 
@@ -243,24 +245,33 @@ export function CountryGame() {
           </button>
 
           <button
-            onClick={() => resetGame()}
-            aria-label="Sifirla"
+            onClick={() => setShowSettings(true)}
+            aria-label="Ayarlar"
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 transition-all"
           >
-            <RotateCcw className="w-4 h-4 shrink-0" />
-            <span>Sıfırla</span>
+            <SettingsIcon className="w-4 h-4 shrink-0" />
+            <span>Ayarlar</span>
           </button>
         </div>
       </footer>
 
       {showCountryList && (
-        <CountryListModal
-          completedCountries={game.done}
+        <CountryListModal done={game.done} playable={playable} onClose={() => setShowCountryList(false)} />
+      )}
+
+      {showSettings && (
+        <SettingsModal
           includeSmallIslands={includeSmallIslands}
-          onToggleSmallIslands={(value) => resetGame(updateSettings({ includeSmallIslands: value }).includeSmallIslands)}
           showWrongAnswer={showWrongAnswer}
-          onToggleShowWrongAnswer={(value) => updateSettings({ showWrongAnswer: value })}
-          onClose={() => setShowCountryList(false)}
+          onChange={(patch) => {
+            const next = updateSettings(patch);
+            if (patch.includeSmallIslands !== undefined) resetGame(next.includeSmallIslands);
+          }}
+          onNewGame={() => {
+            resetGame();
+            setShowSettings(false);
+          }}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>
