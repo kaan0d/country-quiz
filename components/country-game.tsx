@@ -6,7 +6,7 @@ import { countries, shuffleArray, type Continent } from "@/lib/countries";
 import { buildHintCircle, continentBounds, countryCenters } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
-import { countryName, strings, type Lang } from "@/lib/i18n";
+import { capitalName, countryName, strings, type Lang } from "@/lib/i18n";
 import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
 import { SettingsModal } from "./settings-modal";
@@ -16,19 +16,24 @@ const byCode = new Map(countries.map((c) => [c.code, c]));
 const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
 
+export type Mode = "name" | "flag" | "capital";
+
 export type Settings = {
   lang: Lang;
+  mode: Mode;
   region: Continent | "all";
   includeSmallIslands: boolean;
   showWrongAnswer: boolean;
 };
-const defaultSettings: Settings = { lang: "tr", region: "all", includeSmallIslands: true, showWrongAnswer: false };
+const defaultSettings: Settings = { lang: "tr", mode: "name", region: "all", includeSmallIslands: true, showWrongAnswer: false };
 // Changing one of these starts a new game
-const GAME_SETTINGS: (keyof Settings)[] = ["region", "includeSmallIslands"];
+const GAME_SETTINGS: (keyof Settings)[] = ["mode", "region", "includeSmallIslands"];
 
 const playableCodes = (s: Settings) =>
   countries
-    .filter((c) => (s.includeSmallIslands || !c.isSmallIsland) && (s.region === "all" || c.continent === s.region))
+    .filter((c) => s.includeSmallIslands || !c.isSmallIsland)
+    .filter((c) => s.region === "all" || c.continent === s.region)
+    .filter((c) => s.mode !== "capital" || c.capital)
     .map((c) => c.code);
 
 function startGame(s: Settings) {
@@ -103,6 +108,8 @@ export function CountryGame() {
   const gameComplete = game.phase === "over";
   const accuracy = game.attempts > 0 ? Math.round((game.score / game.attempts) * 100) : 0;
   const lastWrong = byCode.get(game.wrong[game.wrong.length - 1]);
+  const mode = settings.mode;
+  const [flagW, flagH] = mode === "flag" ? [96, 64] : [64, 43];
 
   return (
     <div className="flex flex-col bg-background overflow-hidden" style={{ height: "100svh", maxHeight: "100svh" }}>
@@ -111,21 +118,23 @@ export function CountryGame() {
       <header className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 bg-card border-b border-border">
         {current && (
           <div className="flex items-center gap-3">
-            <img
-              key={current.code}
-              src={`/flags/${current.code2}.png`}
-              alt={t.flagAlt(countryName(current, lang))}
-              width={64}
-              height={43}
-              className="rounded shadow-md object-cover border border-white/10 shrink-0"
-              style={{ width: 64, height: 43 }}
-            />
+            {mode !== "capital" && (
+              <img
+                key={current.code}
+                src={`/flags/${current.code2}.png`}
+                alt={mode === "flag" ? t.flagQuestion : t.flagAlt(countryName(current, lang))}
+                width={flagW}
+                height={flagH}
+                className="rounded shadow-md object-cover border border-white/10 shrink-0"
+                style={{ width: flagW, height: flagH }}
+              />
+            )}
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground text-balance leading-tight">
-                {countryName(current, lang)}
+                {mode === "name" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : t.flagQuestion}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">
-                {t.findOnMap}
+                {mode === "capital" ? t.findCapital : t.findOnMap}
               </p>
             </div>
           </div>
@@ -136,10 +145,12 @@ export function CountryGame() {
           {game.phase === "correct" && (
             <span className="flex items-center gap-1 text-green-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
               <Check className="w-3.5 h-3.5" /> {t.correct}
+              {mode !== "name" && current && ` ${countryName(current, lang)}`}
             </span>
           )}
           {game.phase === "revealed" && (
             <span className="text-yellow-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
+              {mode !== "name" && current && `${countryName(current, lang)}: `}
               {t.revealed(MAX_MISSES)}
             </span>
           )}

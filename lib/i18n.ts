@@ -1,10 +1,13 @@
 import type { Continent, Country } from "./countries";
+import type { Mode } from "@/components/country-game";
 
 export type Lang = "tr" | "en";
 
 const tr = {
   loading: "Yükleniyor...",
   findOnMap: "Bu ülkeyi haritada bul ve tıkla",
+  findCapital: "Başkenti bu olan ülkeyi haritada bul",
+  flagQuestion: "Bu bayrak hangi ülkenin?",
   flagAlt: (name: string) => `${name} bayrağı`,
   correct: "Doğru!",
   revealed: (n: number) => `${n} hata: doğru cevap sarı ile gösterildi, ülke sona eklendi`,
@@ -32,6 +35,8 @@ const tr = {
   excluded: "Hariç",
   noResults: "Sonuç bulunamadı.",
   language: "Dil",
+  mode: "Oyun Türü",
+  modes: { name: "Ülke adı", flag: "Bayrak", capital: "Başkent" } as Record<Mode, string>,
   region: "Bölge",
   regionInfo: "Sadece bir kıtanın ülkelerini sor (yeni oyun başlar)",
   world: "Dünya",
@@ -56,6 +61,8 @@ export type Strings = typeof tr;
 const en: Strings = {
   loading: "Loading...",
   findOnMap: "Find this country on the map and click it",
+  findCapital: "Find the country with this capital on the map",
+  flagQuestion: "Whose flag is this?",
   flagAlt: (name) => `Flag of ${name}`,
   correct: "Correct!",
   revealed: (n) => `${n} misses: the answer is shown in yellow and moved to the end`,
@@ -83,6 +90,8 @@ const en: Strings = {
   excluded: "Off",
   noResults: "No results.",
   language: "Language",
+  mode: "Game Mode",
+  modes: { name: "Country name", flag: "Flag", capital: "Capital" },
   region: "Region",
   regionInfo: "Only ask countries from one continent (starts a new game)",
   world: "World",
@@ -105,3 +114,5 @@ const en: Strings = {
 export const strings: Record<Lang, Strings> = { tr, en };
 
 export const countryName = (c: Country, lang: Lang) => (lang === "tr" ? c.name : c.en);
+
+export const capitalName = (c: Country, lang: Lang) => (lang === "tr" ? c.capital : c.capitalEn ?? c.capital) ?? "";
