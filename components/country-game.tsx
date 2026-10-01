@@ -14,6 +14,7 @@ import { GameSummary } from "./game-summary";
 import { answerFeedback } from "@/lib/feedback";
 import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
 import { dailyCodes, shareText, today } from "@/lib/daily";
+import { matchTyped } from "@/lib/match";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
 const allCodes = new Set(byCode.keys());
@@ -22,7 +23,10 @@ const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
 const STATS_KEY = "countryQuiz.stats";
 
-export type Mode = "name" | "flag" | "capital" | "reverse";
+export type Mode = "name" | "flag" | "capital" | "reverse" | "typed";
+
+// Modes where the country is marked on the map and the player names it
+const isMarked = (m: Mode) => m === "reverse" || m === "typed";
 
 export type Settings = {
   lang: Lang;
@@ -71,6 +75,8 @@ export function CountryGame() {
   const [newRecord, setNewRecord] = useState(false);
   const [exploring, setExploring] = useState(false);
   const [picked, setPicked] = useState<string | null>(null); // country tapped in the explore view
+  const [typed, setTyped] = useState("");
+  const [unknownName, setUnknownName] = useState(false);
   const recorded = useRef<number | null>(null); // startedAt of the last game added to stats
   const { lang, showWrongAnswer } = settings;
   const t = strings[lang];
@@ -188,7 +194,7 @@ export function CountryGame() {
         if (key === "escape") setExploring(false);
         return;
       }
-      if (key === "h" && settings.mode !== "reverse") dispatch({ type: "hint" });
+      if (key === "h" && !isMarked(settings.mode)) dispatch({ type: "hint" });
       else if (key === "s") dispatch({ type: "skip" });
       else if (key === "n") resetGame();
       else if (options[Number(key) - 1]) answer(options[Number(key) - 1]);
@@ -219,7 +225,8 @@ export function CountryGame() {
   // How far the wrong pick is from the answer, for the modes where the player searches the map
   const wrongCenter = lastWrong && countryCenters[lastWrong.code];
   const answerCenter = current && countryCenters[current.code];
-  const off = mode !== "reverse" && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
+  const marked = isMarked(mode);
+  const off = !marked && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
   const [flagW, flagH] = mode === "flag" ? [96, 64] : [64, 43];
 
   return (
@@ -250,7 +257,7 @@ export function CountryGame() {
                 {mode === "name" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : mode === "flag" ? t.flagQuestion : t.reverseQuestion}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">
-                {mode === "capital" ? t.findCapital : mode === "reverse" ? t.reverseInfo : t.findOnMap}
+                {mode === "capital" ? t.findCapital : mode === "reverse" ? t.reverseInfo : mode === "typed" ? t.typedInfo : t.findOnMap}
               </p>
             </div>
           </div>
@@ -310,9 +317,9 @@ export function CountryGame() {
           done={game.done}
           wrong={game.wrong}
           correct={game.phase === "correct" ? game.queue[0] : null}
-          target={game.phase === "revealed" || mode === "reverse" ? game.queue[0] : null}
+          target={game.phase === "revealed" || marked ? game.queue[0] : null}
           hintCircle={playing ? hintCircle : null}
-          locked={!playing || mode === "reverse"}
+          locked={!playing || marked}
         />}
 
         {exploring && pickedCountry && (
@@ -344,6 +351,39 @@ export function CountryGame() {
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
             {game.practice && `${t.practiceBadge} · `}{game.daily && `${t.daily} · `}{t.remaining}: {game.queue.length - 1}
           </div>
+        )}
+
+        {mode === "typed" && !gameComplete && !exploring && current && (
+          <form
+            className="absolute bottom-2 inset-x-2 z-10 max-w-sm mx-auto flex flex-col gap-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const code = matchTyped(typed, current, countries);
+              setUnknownName(!code && !!typed.trim());
+              if (code) {
+                answer(code);
+                setTyped("");
+              }
+            }}
+          >
+            {unknownName && <p className="text-xs text-red-400 bg-card/90 rounded px-2 py-1 self-start">{t.unknownName}</p>}
+            <input
+              value={typed}
+              onChange={(e) => {
+                setTyped(e.target.value);
+                setUnknownName(false);
+              }}
+              disabled={!playing}
+              ref={(el) => { if (el && playing && !modalOpen) el.focus(); }}
+              placeholder={t.typedPlaceholder}
+              aria-label={t.typedPlaceholder}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="send"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-card/90 backdrop-blur text-foreground text-base outline-none focus:border-yellow-500"
+            />
+          </form>
         )}
 
         {mode === "reverse" && !gameComplete && !exploring && (
@@ -425,7 +465,7 @@ export function CountryGame() {
 
           <button
             onClick={() => dispatch({ type: "hint" })}
-            disabled={!playing || game.hintUsed || mode === "reverse"}
+            disabled={!playing || game.hintUsed || marked}
             aria-label={t.hint}
             title={`${t.hintCost} (H)`}
             aria-keyshortcuts="H"
