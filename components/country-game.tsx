@@ -204,7 +204,7 @@ export function CountryGame() {
       if (clickedCode === currentCountry.code) {
         setFeedback("correct");
         setScore((prev) => prev + 1);
-        setCorrectCountries((prev) => [...prev, clickedCode]);
+        setCorrectCountries([clickedCode]);
         setWrongCountries([]);
         setHintCircle(null);
         setShowHint(false);
@@ -223,6 +223,7 @@ export function CountryGame() {
 
         setTimeout(() => {
           setFeedback(null);
+          setCorrectCountries([]);
           setIsLocked(false);
           // Take next from front of queue
           setCurrentCountry(queue[0]);

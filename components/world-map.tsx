@@ -49,6 +49,10 @@ interface WorldMapProps {
   isLocked: boolean; // when true, no clicks allowed (during transition)
 }
 
+const MAP_SCALE = 160;
+// Equirectangular: one degree spans the same number of SVG units everywhere
+const UNITS_PER_DEGREE = (MAP_SCALE * Math.PI) / 180;
+
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 48;
 
@@ -261,7 +265,7 @@ function WorldMapComponent({
     >
       <ComposableMap
         projection="geoEquirectangular"
-        projectionConfig={{ scale: 160, center: [0, 10] }}
+        projectionConfig={{ scale: MAP_SCALE, center: [0, 10] }}
         className="w-full h-full select-none"
         style={{ background: "#0f172a" }}
       >
@@ -368,7 +372,7 @@ function WorldMapComponent({
           {hintCircle && (
             <Marker coordinates={hintCircle.center}>
               <circle
-                r={hintCircle.radius}
+                r={hintCircle.radius * UNITS_PER_DEGREE}
                 fill="rgba(234,179,8,0.08)"
                 stroke="#eab308"
                 strokeWidth={1.5}
