@@ -6,6 +6,7 @@ import { countries, getFilteredCountries, shuffleArray } from "@/lib/countries";
 import { buildHintCircle, countryCenters } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
+import { countryName, strings, type Lang } from "@/lib/i18n";
 import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
 import { SettingsModal } from "./settings-modal";
@@ -15,8 +16,8 @@ const byCode = new Map(countries.map((c) => [c.code, c]));
 const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
 
-const defaultSettings = { includeSmallIslands: true, showWrongAnswer: false };
-type Settings = typeof defaultSettings;
+type Settings = { lang: Lang; includeSmallIslands: boolean; showWrongAnswer: boolean };
+const defaultSettings: Settings = { lang: "tr", includeSmallIslands: true, showWrongAnswer: false };
 
 function startGame(includeSmallIslands: boolean) {
   return newGame(shuffleArray(getFilteredCountries(includeSmallIslands)).map((c) => c.code), Date.now());
@@ -28,7 +29,12 @@ export function CountryGame() {
   const [showCountryList, setShowCountryList] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
-  const { includeSmallIslands, showWrongAnswer } = settings;
+  const { lang, includeSmallIslands, showWrongAnswer } = settings;
+  const t = strings[lang];
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   // Restore settings and the unfinished game, or start a new one
   useEffect(() => {
@@ -76,7 +82,7 @@ export function CountryGame() {
       <div className="flex items-center justify-center h-svh bg-background">
         <div className="flex items-center gap-3 text-foreground">
           <Globe className="w-7 h-7 animate-spin" />
-          <span className="text-lg">Yükleniyor...</span>
+          <span className="text-lg">{t.loading}</span>
         </div>
       </div>
     );
@@ -97,7 +103,7 @@ export function CountryGame() {
             <img
               key={current.code}
               src={`/flags/${current.code2}.png`}
-              alt={`${current.name} bayrağı`}
+              alt={t.flagAlt(countryName(current, lang))}
               width={64}
               height={43}
               className="rounded shadow-md object-cover border border-white/10 shrink-0"
@@ -105,10 +111,10 @@ export function CountryGame() {
             />
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground text-balance leading-tight">
-                {current.name}
+                {countryName(current, lang)}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">
-                Bu ülkeyi haritada bul ve tıkla
+                {t.findOnMap}
               </p>
             </div>
           </div>
@@ -118,20 +124,20 @@ export function CountryGame() {
         <div className="h-5 flex items-center justify-center">
           {game.phase === "correct" && (
             <span className="flex items-center gap-1 text-green-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
-              <Check className="w-3.5 h-3.5" /> Doğru!
+              <Check className="w-3.5 h-3.5" /> {t.correct}
             </span>
           )}
           {game.phase === "revealed" && (
             <span className="text-yellow-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
-              {MAX_MISSES} hata: doğru cevap sarı ile gösterildi, ülke sona eklendi
+              {t.revealed(MAX_MISSES)}
             </span>
           )}
           {playing && lastWrong && (
             <span className="flex items-center gap-1 text-red-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
               <X className="w-3.5 h-3.5" />
               {showWrongAnswer
-                ? <><span className="text-red-300">{lastWrong.name}</span><span className="text-red-400/70 ml-1">— tekrar dene!</span></>
-                : "Yanlış, tekrar dene!"
+                ? <><span className="text-red-300">{countryName(lastWrong, lang)}</span><span className="text-red-400/70 ml-1">{t.tryAgain}</span></>
+                : t.wrong
               }
             </span>
           )}
@@ -153,13 +159,13 @@ export function CountryGame() {
 
         {game.hintUsed && current && (
           <div className="absolute top-2 left-2 bg-yellow-500 text-yellow-950 px-2.5 py-1 rounded-md font-semibold text-xs z-10 shadow-lg pointer-events-none">
-            Kıta: {current.continent}
+            {t.continent}: {t.continents[current.continent]}
           </div>
         )}
 
         {game.queue.length > 1 && (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
-            Kalan: {game.queue.length - 1}
+            {t.remaining}: {game.queue.length - 1}
           </div>
         )}
 
@@ -168,20 +174,20 @@ export function CountryGame() {
           <div className="absolute inset-0 bg-background/90 flex items-center justify-center z-20 px-4">
             <div className="bg-card p-6 sm:p-8 rounded-xl border border-border text-center w-full max-w-sm shadow-2xl">
               <Trophy className="w-14 h-14 text-yellow-400 mx-auto mb-3" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">Tebrikler!</h2>
-              <p className="text-muted-foreground text-sm mb-5">Tüm ülkeleri tamamladınız!</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">{t.congrats}</h2>
+              <p className="text-muted-foreground text-sm mb-5">{t.allDone}</p>
               <div className="flex justify-center gap-6 mb-6">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-400">{game.score}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Doğru</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.correctCount}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-foreground">{game.attempts}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Deneme</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.attemptsCount}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-yellow-400">{accuracy}%</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Başarı</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t.accuracy}</p>
                 </div>
               </div>
               <button
@@ -189,7 +195,7 @@ export function CountryGame() {
                 className="flex items-center gap-2 mx-auto px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
               >
                 <RotateCcw className="w-4 h-4" />
-                Yeniden Oyna
+                {t.playAgain}
               </button>
             </div>
           </div>
@@ -216,51 +222,53 @@ export function CountryGame() {
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowCountryList(true)}
-            aria-label="Ulke listesi"
+            aria-label={t.allCountries}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 transition-all"
           >
             <List className="w-4 h-4 shrink-0" />
-            <span>Ülkeler</span>
+            <span>{t.countries}</span>
           </button>
 
           <button
             onClick={() => dispatch({ type: "hint" })}
             disabled={!playing || game.hintUsed}
-            aria-label="Ipucu"
-            title="İpucu bir hata sayılır"
+            aria-label={t.hint}
+            title={t.hintCost}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <Lightbulb className="w-4 h-4 shrink-0" />
-            <span>İpucu</span>
+            <span>{t.hint}</span>
           </button>
 
           <button
             onClick={() => dispatch({ type: "skip" })}
             disabled={!playing || game.queue.length < 2}
-            aria-label="Pas gec"
+            aria-label={t.skip}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <SkipForward className="w-4 h-4 shrink-0" />
-            <span>Pas</span>
+            <span>{t.skip}</span>
           </button>
 
           <button
             onClick={() => setShowSettings(true)}
-            aria-label="Ayarlar"
+            aria-label={t.settings}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 transition-all"
           >
             <SettingsIcon className="w-4 h-4 shrink-0" />
-            <span>Ayarlar</span>
+            <span>{t.settings}</span>
           </button>
         </div>
       </footer>
 
       {showCountryList && (
-        <CountryListModal done={game.done} playable={playable} onClose={() => setShowCountryList(false)} />
+        <CountryListModal t={t} lang={lang} done={game.done} playable={playable} onClose={() => setShowCountryList(false)} />
       )}
 
       {showSettings && (
         <SettingsModal
+          t={t}
+          lang={lang}
           includeSmallIslands={includeSmallIslands}
           showWrongAnswer={showWrongAnswer}
           onChange={(patch) => {

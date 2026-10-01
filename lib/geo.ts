@@ -46,13 +46,13 @@ export const numericToAlpha3: Record<string, string> = {
 };
 
 export const continentBounds: Record<Continent, [number, number, number, number]> = {
-  "Avrupa": [-25, 35, 45, 72],
-  "Asya": [25, -10, 145, 75],
-  "Afrika": [-20, -35, 55, 38],
-  "Kuzey Amerika": [-170, 5, -50, 85],
-  "Güney Amerika": [-82, -56, -34, 13],
-  "Okyanusya": [110, -50, 180, -10],
-  "Antarktika": [-180, -90, 180, -60],
+  europe: [-25, 35, 45, 72],
+  asia: [25, -10, 145, 75],
+  africa: [-20, -35, 55, 38],
+  northAmerica: [-170, 5, -50, 85],
+  southAmerica: [-82, -56, -34, 13],
+  oceania: [110, -50, 180, -10],
+  antarctica: [-180, -90, 180, -60],
 };
 
 export function buildHintCircle(

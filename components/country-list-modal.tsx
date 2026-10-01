@@ -1,47 +1,42 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { countries, type Continent } from "@/lib/countries";
+import { countries, CONTINENTS, type Continent } from "@/lib/countries";
+import { countryName, type Lang, type Strings } from "@/lib/i18n";
 import { Check, Search } from "lucide-react";
-import { Modal } from "./modal";
-
-const CONTINENTS: Continent[] = [
-  "Avrupa",
-  "Asya",
-  "Afrika",
-  "Kuzey Amerika",
-  "Güney Amerika",
-  "Okyanusya",
-  "Antarktika",
-];
+import { Chip, Modal } from "./modal";
 
 interface CountryListModalProps {
+  t: Strings;
+  lang: Lang;
   done: string[]; // alpha-3
   playable: Set<string>;
   onClose: () => void;
 }
 
-export function CountryListModal({ done, playable, onClose }: CountryListModalProps) {
+export function CountryListModal({ t, lang, done, playable, onClose }: CountryListModalProps) {
   const [search, setSearch] = useState("");
-  const [activeContinent, setActiveContinent] = useState<Continent | "Tümü">("Tümü");
+  const [activeContinent, setActiveContinent] = useState<Continent | "all">("all");
 
   const filtered = useMemo(() => {
+    const q = search.toLocaleLowerCase(lang);
     return countries.filter((c) => {
-      const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
-      const matchContinent = activeContinent === "Tümü" || c.continent === activeContinent;
+      const matchSearch = countryName(c, lang).toLocaleLowerCase(lang).includes(q);
+      const matchContinent = activeContinent === "all" || c.continent === activeContinent;
       return matchSearch && matchContinent;
     });
-  }, [search, activeContinent]);
+  }, [search, activeContinent, lang]);
 
   return (
-    <Modal title="Tüm Ülkeler" subtitle={`${done.length} / ${playable.size} tamamlandı`} onClose={onClose}>
+    <Modal title={t.allCountries} subtitle={t.completed(done.length, playable.size)} closeLabel={t.close} onClose={onClose}>
         {/* Search */}
         <div className="px-5 pt-3 pb-2 shrink-0">
           <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
             <input
-              type="text"
-              placeholder="Ülke ara..."
+              type="search"
+              placeholder={t.search}
+              aria-label={t.search}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
@@ -51,17 +46,10 @@ export function CountryListModal({ done, playable, onClose }: CountryListModalPr
 
         {/* Continent filter */}
         <div className="px-5 pb-3 flex gap-1.5 flex-wrap shrink-0">
-          {(["Tümü", ...CONTINENTS] as const).map((c) => (
-            <button
-              key={c}
-              onClick={() => setActiveContinent(c)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${activeContinent === c
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              {c}
-            </button>
+          {(["all", ...CONTINENTS] as const).map((c) => (
+            <Chip key={c} active={activeContinent === c} onClick={() => setActiveContinent(c)}>
+              {c === "all" ? t.all : t.continents[c]}
+            </Chip>
           ))}
         </div>
 
@@ -83,7 +71,7 @@ export function CountryListModal({ done, playable, onClose }: CountryListModalPr
                 >
                   <img
                     src={`/flags/${country.code2}.png`}
-                    alt={`${country.name} bayrağı`}
+                    alt={t.flagAlt(countryName(country, lang))}
                     width={28}
                     height={20}
                     className="rounded-sm object-cover shrink-0"
@@ -95,21 +83,21 @@ export function CountryListModal({ done, playable, onClose }: CountryListModalPr
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium truncate ${isExcluded ? "text-muted-foreground" : isDone ? "text-green-400" : "text-foreground"
                       }`}>
-                      {country.name}
+                      {countryName(country, lang)}
                       {country.isSmallIsland && (
-                        <span className="ml-1 text-xs text-muted-foreground">(Ada)</span>
+                        <span className="ml-1 text-xs text-muted-foreground">({t.island})</span>
                       )}
                     </p>
-                    <p className="text-xs text-muted-foreground">{country.continent}</p>
+                    <p className="text-xs text-muted-foreground">{t.continents[country.continent]}</p>
                   </div>
                   {isDone && !isExcluded && <Check className="w-4 h-4 text-green-400 shrink-0" />}
-                  {isExcluded && <span className="text-xs text-muted-foreground">Hariç</span>}
+                  {isExcluded && <span className="text-xs text-muted-foreground">{t.excluded}</span>}
                 </div>
               );
             })}
           </div>
           {filtered.length === 0 && (
-            <p className="text-center text-muted-foreground text-sm py-8">Sonuç bulunamadı.</p>
+            <p className="text-center text-muted-foreground text-sm py-8">{t.noResults}</p>
           )}
         </div>
     </Modal>

@@ -6,10 +6,12 @@ import { X } from "lucide-react";
 export function Modal({
   title,
   subtitle,
+  closeLabel,
   onClose,
   children,
 }: {
   title: string;
+  closeLabel: string;
   subtitle?: ReactNode;
   onClose: () => void;
   children: ReactNode;
@@ -34,7 +36,7 @@ export function Modal({
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Kapat"
+            aria-label={closeLabel}
           >
             <X className="w-5 h-5" />
           </button>
@@ -42,5 +44,20 @@ export function Modal({
         {children}
       </div>
     </div>
+  );
+}
+
+export function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${active
+        ? "bg-primary text-primary-foreground"
+        : "bg-muted text-muted-foreground hover:text-foreground"
+        }`}
+    >
+      {children}
+    </button>
   );
 }

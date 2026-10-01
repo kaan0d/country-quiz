@@ -1,7 +1,8 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { Modal } from "./modal";
+import { Chip, Modal } from "./modal";
+import type { Lang, Strings } from "@/lib/i18n";
 
 function Toggle({
   label,
@@ -36,30 +37,44 @@ function Toggle({
 }
 
 export function SettingsModal({
+  t,
+  lang,
   includeSmallIslands,
   showWrongAnswer,
   onChange,
   onNewGame,
   onClose,
 }: {
+  t: Strings;
+  lang: Lang;
   includeSmallIslands: boolean;
   showWrongAnswer: boolean;
-  onChange: (patch: { includeSmallIslands?: boolean; showWrongAnswer?: boolean }) => void;
+  onChange: (patch: { lang?: Lang; includeSmallIslands?: boolean; showWrongAnswer?: boolean }) => void;
   onNewGame: () => void;
   onClose: () => void;
 }) {
   return (
-    <Modal title="Ayarlar" onClose={onClose}>
+    <Modal title={t.settings} closeLabel={t.close} onClose={onClose}>
       <div className="overflow-y-auto px-5 py-4 flex flex-col gap-5">
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-foreground">{t.language}</p>
+          <div className="flex gap-1.5">
+            {(["tr", "en"] as const).map((l) => (
+              <Chip key={l} active={lang === l} onClick={() => onChange({ lang: l })}>
+                {l === "tr" ? "Türkçe" : "English"}
+              </Chip>
+            ))}
+          </div>
+        </div>
         <Toggle
-          label="Küçük Adaları Dahil Et"
-          description="Haritada zor bulunan küçük ada ülkelerini oyuna dahil et (yeni oyun başlar)"
+          label={t.smallIslands}
+          description={t.smallIslandsInfo}
           value={includeSmallIslands}
           onChange={(v) => onChange({ includeSmallIslands: v })}
         />
         <Toggle
-          label="Yanlış Cevapta Ülke Adını Göster"
-          description="Yanlış tıklamada tıklanan ülkenin adı ekranda görünsün"
+          label={t.showWrong}
+          description={t.showWrongInfo}
           value={showWrongAnswer}
           onChange={(v) => onChange({ showWrongAnswer: v })}
         />
@@ -68,7 +83,7 @@ export function SettingsModal({
           className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
         >
           <RotateCcw className="w-4 h-4" />
-          Yeni Oyun
+          {t.newGame}
         </button>
       </div>
     </Modal>
