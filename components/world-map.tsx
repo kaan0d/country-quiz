@@ -31,7 +31,7 @@ interface WorldMapProps {
   done: string[];
   wrong: string[];
   correct: string | null;
-  target: string | null; // highlighted answer
+  targets: string[]; // highlighted in yellow: the answer, or the asked country in neighbours mode
   hintCircle: HintCircle | null;
   locked: boolean;
   heat?: Record<string, number>; // explore view: open countries are tinted by lifetime misses
@@ -89,7 +89,7 @@ function WorldMapComponent({
   done,
   wrong,
   correct,
-  target,
+  targets,
   hintCircle,
   locked,
   heat,
@@ -134,7 +134,7 @@ function WorldMapComponent({
   const status = (a3: string | null): keyof typeof FILL => {
     if (!a3 || !playable.has(a3)) return "off";
     if (a3 === correct) return "correct";
-    if (a3 === target) return "target";
+    if (targets.includes(a3)) return "target";
     if (wrong.includes(a3)) return "wrong";
     if (done.includes(a3)) return "done";
     return "open";

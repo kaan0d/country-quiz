@@ -15,6 +15,7 @@ import { answerFeedback } from "@/lib/feedback";
 import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
 import { dailyCodes, shareText, today } from "@/lib/daily";
 import { matchTyped } from "@/lib/match";
+import { neighbors } from "@/lib/neighbors";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
 const allCodes = new Set(byCode.keys());
@@ -23,7 +24,7 @@ const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
 const STATS_KEY = "countryQuiz.stats";
 
-export type Mode = "name" | "flag" | "capital" | "reverse" | "typed";
+export type Mode = "name" | "flag" | "capital" | "reverse" | "typed" | "neighbors";
 
 // Modes where the country is marked on the map and the player names it
 const isMarked = (m: Mode) => m === "reverse" || m === "typed";
@@ -49,12 +50,17 @@ function pickOptions(answer: string, pool: string[], n = 4) {
   return shuffleArray([answer, ...others.slice(0, n - 1)]);
 }
 
-const playableCodes = (s: Settings) =>
-  countries
+const playableCodes = (s: Settings) => {
+  const codes = countries
     .filter((c) => s.includeSmallIslands || !c.isSmallIsland)
     .filter((c) => s.region === "all" || c.continent === s.region)
     .filter((c) => s.mode !== "capital" || c.capital)
     .map((c) => c.code);
+  if (s.mode !== "neighbors") return codes;
+  // Only countries with a neighbour in the same game, so every question has an answer on the map
+  const pool = new Set(codes);
+  return codes.filter((code) => neighbors[code]?.some((n) => pool.has(n)));
+};
 
 const TIME_LIMIT = 60_000;
 
@@ -77,6 +83,7 @@ export function CountryGame() {
   const [picked, setPicked] = useState<string | null>(null); // country tapped in the explore view
   const [typed, setTyped] = useState("");
   const [unknownName, setUnknownName] = useState(false);
+  const [lastPick, setLastPick] = useState<string | null>(null); // the neighbour clicked in neighbours mode
   const recorded = useRef<number | null>(null); // startedAt of the last game added to stats
   const { lang, showWrongAnswer } = settings;
   const t = strings[lang];
@@ -138,6 +145,12 @@ export function CountryGame() {
   }, [game.phase]);
 
   const answer = (code: string) => {
+    // Neighbours mode: any bordering country is right, the asked country itself does nothing
+    if (settings.mode === "neighbors") {
+      if (code === game.queue[0]) return;
+      setLastPick(code);
+      if (neighbors[game.queue[0]]?.includes(code)) code = game.queue[0];
+    }
     const next = reducer(game, { type: "answer", code });
     if (next !== game && settings.sound) answerFeedback(next.phase === "correct");
     dispatch({ type: "answer", code });
@@ -172,7 +185,7 @@ export function CountryGame() {
   const startDaily = () => {
     record(game);
     const date = today();
-    dispatch({ type: "load", state: newGame(dailyCodes(date), Date.now(), { daily: date }) });
+    dispatch({ type: "load", state: newGame(dailyCodes(date, settings.mode), Date.now(), { daily: date }) });
   };
   const options = useMemo(
     () => (settings.mode === "reverse" && game.queue[0] ? pickOptions(game.queue[0], [...playable]) : []),
@@ -194,7 +207,7 @@ export function CountryGame() {
         if (key === "escape") setExploring(false);
         return;
       }
-      if (key === "h" && !isMarked(settings.mode)) dispatch({ type: "hint" });
+      if (key === "h" && !isMarked(settings.mode) && settings.mode !== "neighbors") dispatch({ type: "hint" });
       else if (key === "s") dispatch({ type: "skip" });
       else if (key === "n") resetGame();
       else if (options[Number(key) - 1]) answer(options[Number(key) - 1]);
@@ -222,11 +235,12 @@ export function CountryGame() {
   const lastWrong = byCode.get(game.wrong[game.wrong.length - 1]);
   const mode = settings.mode;
   const pickedCountry = picked ? byCode.get(picked) : undefined;
+  const lastPickCountry = lastPick ? byCode.get(lastPick) : undefined;
   // How far the wrong pick is from the answer, for the modes where the player searches the map
   const wrongCenter = lastWrong && countryCenters[lastWrong.code];
   const answerCenter = current && countryCenters[current.code];
   const marked = isMarked(mode);
-  const off = !marked && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
+  const off = !marked && mode !== "neighbors" && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
   const [flagW, flagH] = mode === "flag" ? [96, 64] : [64, 43];
 
   return (
@@ -241,7 +255,7 @@ export function CountryGame() {
           </div>
         ) : current && !gameComplete && (
           <div className="flex items-center gap-3">
-            {(mode === "name" || mode === "flag") && (
+            {(mode === "name" || mode === "flag" || mode === "neighbors") && (
               <img
                 key={current.code}
                 src={`/flags/${current.code2}.png`}
@@ -254,10 +268,10 @@ export function CountryGame() {
             )}
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground text-balance leading-tight">
-                {mode === "name" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : mode === "flag" ? t.flagQuestion : t.reverseQuestion}
+                {mode === "name" || mode === "neighbors" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : mode === "flag" ? t.flagQuestion : t.reverseQuestion}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">
-                {mode === "capital" ? t.findCapital : mode === "reverse" ? t.reverseInfo : mode === "typed" ? t.typedInfo : t.findOnMap}
+                {mode === "capital" ? t.findCapital : mode === "reverse" ? t.reverseInfo : mode === "typed" ? t.typedInfo : mode === "neighbors" ? t.neighborsInfo : t.findOnMap}
               </p>
             </div>
           </div>
@@ -268,12 +282,12 @@ export function CountryGame() {
           {game.phase === "correct" && (
             <span className="flex items-center gap-1 text-green-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
               <Check className="w-3.5 h-3.5" /> {t.correct}
-              {mode !== "name" && current && ` ${countryName(current, lang)}`}
+              {mode === "neighbors" ? lastPickCountry && ` ${countryName(lastPickCountry, lang)}` : mode !== "name" && current && ` ${countryName(current, lang)}`}
             </span>
           )}
           {game.phase === "revealed" && (
             <span className="text-yellow-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
-              {mode !== "name" && current && `${countryName(current, lang)}: `}
+              {mode !== "name" && mode !== "neighbors" && current && `${countryName(current, lang)}: `}
               {t.revealed(MAX_MISSES)}
             </span>
           )}
@@ -305,7 +319,7 @@ export function CountryGame() {
             done={[]}
             wrong={[]}
             correct={null}
-            target={picked}
+            targets={picked ? [picked] : []}
             hintCircle={null}
             locked={false}
             heat={stats.misses}
@@ -314,10 +328,15 @@ export function CountryGame() {
           onCountryClick={answer}
           playable={playable}
           focus={region === "all" ? null : continentBounds[region]}
-          done={game.done}
+          // Done countries are not clickable, but in neighbours mode they are still answers
+          done={mode === "neighbors" ? [] : game.done}
           wrong={game.wrong}
-          correct={game.phase === "correct" ? game.queue[0] : null}
-          target={game.phase === "revealed" || marked ? game.queue[0] : null}
+          correct={game.phase !== "correct" ? null : mode === "neighbors" ? lastPick : game.queue[0]}
+          targets={
+            mode === "neighbors"
+              ? [game.queue[0], ...(game.phase === "revealed" ? (neighbors[game.queue[0]] ?? []) : [])]
+              : game.phase === "revealed" || marked ? [game.queue[0]] : []
+          }
           hintCircle={playing ? hintCircle : null}
           locked={!playing || marked}
         />}
@@ -423,7 +442,7 @@ export function CountryGame() {
             practiceCount={practiceCodes.length}
             onPlayAgain={() => resetGame()}
             onPractice={startPractice}
-            share={game.daily ? shareText(game.daily, t.modes[mode], game.missed) : null}
+            share={game.daily ? shareText(game.daily, mode, t.modes[mode], game.missed) : null}
           />
         )}
       </main>
@@ -465,7 +484,7 @@ export function CountryGame() {
 
           <button
             onClick={() => dispatch({ type: "hint" })}
-            disabled={!playing || game.hintUsed || marked}
+            disabled={!playing || game.hintUsed || marked || mode === "neighbors"}
             aria-label={t.hint}
             title={`${t.hintCost} (H)`}
             aria-keyshortcuts="H"

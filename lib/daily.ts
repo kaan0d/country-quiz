@@ -1,4 +1,5 @@
 import { countries } from "./countries.ts";
+import { neighbors } from "./neighbors.ts";
 
 export const DAILY_SIZE = 10;
 
@@ -17,9 +18,12 @@ function seededRandom(seed: string) {
   };
 }
 
-// Same countries for everyone on a given day; small islands are left out so the map is fair
-export function dailyCodes(date: string) {
-  const pool = countries.filter((c) => c.capital && !c.isSmallIsland).map((c) => c.code);
+// Same countries for everyone on a given day; small islands are left out so the map is fair.
+// The neighbours mode needs countries that have a land border.
+export function dailyCodes(date: string, mode: string) {
+  const pool = countries
+    .filter((c) => c.capital && !c.isSmallIsland && (mode !== "neighbors" || neighbors[c.code]))
+    .map((c) => c.code);
   const rand = seededRandom(date);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
@@ -29,13 +33,14 @@ export function dailyCodes(date: string) {
 }
 
 // One square per country in the day's order: green first try, yellow found after misses, red revealed
-export function shareText(date: string, mode: string, missed: Record<string, number>) {
-  const squares = dailyCodes(date)
+export function shareText(date: string, mode: string, modeLabel: string, missed: Record<string, number>) {
+  const codes = dailyCodes(date, mode);
+  const squares = codes
     .map((code) => {
       const n = missed[code] ?? 0;
       return n === 0 ? "🟩" : n < 3 ? "🟨" : "🟥";
     })
     .join("");
-  const clean = dailyCodes(date).filter((code) => !missed[code]).length;
-  return `Country Quiz ${date} · ${mode}\n${squares} ${clean}/${DAILY_SIZE}`;
+  const clean = codes.filter((code) => !missed[code]).length;
+  return `Country Quiz ${date} · ${modeLabel}\n${squares} ${clean}/${DAILY_SIZE}`;
 }
