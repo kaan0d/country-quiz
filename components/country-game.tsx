@@ -3,11 +3,11 @@
 import { useState, useEffect, useMemo, useReducer, useRef } from "react";
 import { WorldMap, type HintCircle } from "./world-map";
 import { countries, shuffleArray, type Continent } from "@/lib/countries";
-import { buildHintCircle, continentBounds, countryCenters } from "@/lib/geo";
+import { buildHintCircle, continentBounds, countryCenters, offBy } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
 import { capitalName, countryName, strings, type Lang } from "@/lib/i18n";
-import { Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
+import { ArrowUp, Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
 import { SettingsModal } from "./settings-modal";
 import { GameSummary } from "./game-summary";
@@ -199,6 +199,10 @@ export function CountryGame() {
   const accuracy = game.attempts > 0 ? Math.round((game.score / game.attempts) * 100) : 0;
   const lastWrong = byCode.get(game.wrong[game.wrong.length - 1]);
   const mode = settings.mode;
+  // How far the wrong pick is from the answer, for the modes where the player searches the map
+  const wrongCenter = lastWrong && countryCenters[lastWrong.code];
+  const answerCenter = current && countryCenters[current.code];
+  const off = mode !== "reverse" && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
   const [flagW, flagH] = mode === "flag" ? [96, 64] : [64, 43];
 
   return (
@@ -251,6 +255,12 @@ export function CountryGame() {
                 ? <><span className="text-red-300">{countryName(lastWrong, lang)}</span><span className="text-red-400/70 ml-1">{t.tryAgain}</span></>
                 : t.wrong
               }
+              {off && (
+                <span className="flex items-center gap-0.5 text-muted-foreground font-normal ml-1 tabular-nums">
+                  · {off.km.toLocaleString(lang)} km
+                  <ArrowUp className="w-3.5 h-3.5" style={{ transform: `rotate(${off.deg}deg)` }} aria-label={t.direction} />
+                </span>
+              )}
             </span>
           )}
         </div>

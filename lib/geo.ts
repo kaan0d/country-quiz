@@ -1,4 +1,4 @@
-import { countries, type Continent } from "./countries";
+import { countries, type Continent } from "./countries.ts";
 
 // ISO numeric → alpha-3
 export const numericToAlpha3: Record<string, string> = {
@@ -134,3 +134,13 @@ export const tinyCountries = new Set([
   ...countries.filter((c) => c.isSmallIsland).map((c) => c.code),
   "VAT", "MCO", "SMR", "LIE", "AND", "LUX",
 ]);
+
+// Great-circle distance in km and the direction to go on the map (degrees clockwise from north).
+// The direction follows the flat map, not the globe, so the arrow points where the player should look.
+export function offBy(from: [number, number], to: [number, number]) {
+  const [lng1, lat1, lng2, lat2] = [...from, ...to].map((d) => (d * Math.PI) / 180);
+  const a = Math.sin((lat2 - lat1) / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin((lng2 - lng1) / 2) ** 2;
+  const km = 2 * 6371 * Math.asin(Math.sqrt(a));
+  const deg = (Math.atan2(to[0] - from[0], to[1] - from[1]) * 180) / Math.PI;
+  return { km: Math.round(km), deg: (deg + 360) % 360 };
+}
