@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dumbbell, RotateCcw, Share2, Trophy } from "lucide-react";
+import { Dumbbell, House, RotateCcw, Share2, Trophy } from "lucide-react";
 import { flagUrl, type Country } from "@/lib/countries";
 import type { GameState } from "@/lib/game";
 import { countryName, type Lang, type Strings } from "@/lib/i18n";
@@ -21,6 +21,7 @@ export function GameSummary({
   practiceCount,
   onPlayAgain,
   onPractice,
+  onMenu,
   share,
 }: {
   t: Strings;
@@ -32,6 +33,7 @@ export function GameSummary({
   practiceCount: number;
   onPlayAgain: () => void;
   onPractice: () => void;
+  onMenu: () => void;
   share: string | null; // daily challenge result to copy
 }) {
   const [copied, setCopied] = useState(false);
@@ -130,6 +132,13 @@ export function GameSummary({
               {t.practice(practiceCount)}
             </button>
           )}
+          <button
+            onClick={onMenu}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-muted-foreground font-semibold text-sm hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <House className="w-4 h-4" />
+            {t.menu}
+          </button>
         </div>
       </div>
     </div>

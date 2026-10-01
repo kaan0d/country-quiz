@@ -7,9 +7,9 @@ import { buildHintCircle, continentBounds, countryCenters, offBy } from "@/lib/g
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
 import { capitalName, countryName, strings, type Lang } from "@/lib/i18n";
-import { ArrowUp, Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
+import { ArrowUp, Target, Check, Globe, Lightbulb, SkipForward, List, X, House } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
-import { SettingsModal } from "./settings-modal";
+import { MainMenu, type StartKind } from "./main-menu";
 import { GameSummary } from "./game-summary";
 import { answerFeedback } from "@/lib/feedback";
 import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
@@ -39,8 +39,6 @@ export type Settings = {
   sound: boolean;
 };
 const defaultSettings: Settings = { lang: "tr", mode: "name", timed: false, region: "all", includeSmallIslands: true, showWrongAnswer: false, sound: true };
-// Changing one of these starts a new game
-const GAME_SETTINGS: (keyof Settings)[] = ["mode", "timed", "region", "includeSmallIslands"];
 
 // Answer plus distractors, from the same continent when there are enough
 function pickOptions(answer: string, pool: string[], n = 4) {
@@ -75,7 +73,7 @@ export function CountryGame() {
   const [game, dispatch] = useReducer(reducer, null, () => newGame([], 0));
   const [ready, setReady] = useState(false);
   const [showCountryList, setShowCountryList] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [menu, setMenu] = useState(true); // the main menu opens first on every visit
   const [settings, setSettings] = useState(defaultSettings);
   const [stats, setStats] = useState(emptyStats);
   const [newRecord, setNewRecord] = useState(false);
@@ -92,14 +90,13 @@ export function CountryGame() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Restore settings and the unfinished game, or start a new one
+  // Restore settings and the unfinished game; the menu offers to continue it
   useEffect(() => {
-    const saved = load(SETTINGS_KEY, defaultSettings);
     const savedGame = load<GameState | null>(GAME_KEY, null);
-    setSettings(saved);
+    setSettings(load(SETTINGS_KEY, defaultSettings));
     setStats(load(STATS_KEY, emptyStats));
     const resumable = savedGame?.phase !== "over" && savedGame?.queue.every((code) => byCode.has(code));
-    dispatch({ type: "load", state: resumable ? savedGame! : startGame(saved) });
+    if (resumable) dispatch({ type: "load", state: savedGame! });
     setReady(true);
   }, []);
 
@@ -156,9 +153,17 @@ export function CountryGame() {
     dispatch({ type: "answer", code });
   };
 
-  const resetGame = (s = settings) => {
+  // Starts a game with the given setup; the current one goes into the stats first, under its own settings
+  const start = (setup: Settings, kind: StartKind = "new") => {
     record(game);
-    dispatch({ type: "load", state: startGame(s) });
+    const s = updateSettings(setup);
+    const date = today();
+    const state =
+      kind === "daily" ? newGame(dailyCodes(date, s.mode), Date.now(), { daily: date })
+      : kind === "practice" ? newGame(shuffleArray(hardest(stats, playableCodes(s))), Date.now(), { practice: true })
+      : startGame(s);
+    dispatch({ type: "load", state });
+    setMenu(false);
   };
 
   const updateSettings = (patch: Partial<Settings>) => {
@@ -177,16 +182,6 @@ export function CountryGame() {
     [settings.mode, region, settings.includeSmallIslands, game.daily]
   );
   const practiceCodes = hardest(stats, playable);
-  const startPractice = () => {
-    record(game);
-    dispatch({ type: "load", state: newGame(shuffleArray(practiceCodes), Date.now(), { practice: true }) });
-  };
-  // Daily challenge: the day's countries in a fixed order, in the current mode
-  const startDaily = () => {
-    record(game);
-    const date = today();
-    dispatch({ type: "load", state: newGame(dailyCodes(date, settings.mode), Date.now(), { daily: date }) });
-  };
   const options = useMemo(
     () => (settings.mode === "reverse" && game.queue[0] ? pickOptions(game.queue[0], [...playable]) : []),
     [settings.mode, game.queue[0], playable]
@@ -196,20 +191,21 @@ export function CountryGame() {
     [current, game.hintUsed]
   );
 
-  // Keyboard: H hint, S skip, N new game, 1-4 pick an option in reverse mode
-  const modalOpen = showSettings || showCountryList;
+  // Keyboard: H hint, S skip, N new game, M menu, 1-4 pick an option in reverse mode
+  const modalOpen = menu || showCountryList;
   useEffect(() => {
     if (!ready || modalOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement) return;
       const key = e.key.toLowerCase();
       if (exploring) {
-        if (key === "escape") setExploring(false);
+        if (key === "escape") closeExplore();
         return;
       }
       if (key === "h" && !isMarked(settings.mode) && settings.mode !== "neighbors") dispatch({ type: "hint" });
       else if (key === "s") dispatch({ type: "skip" });
-      else if (key === "n") resetGame();
+      else if (key === "n") start(settings);
+      else if (key === "m") setMenu(true);
       else if (options[Number(key) - 1]) answer(options[Number(key) - 1]);
       else return;
       e.preventDefault();
@@ -217,6 +213,12 @@ export function CountryGame() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  // Explore is opened from the menu, so leaving it goes back there
+  function closeExplore() {
+    setExploring(false);
+    setMenu(true);
+  }
 
   if (!ready) {
     return (
@@ -230,6 +232,7 @@ export function CountryGame() {
   }
 
   const playing = game.phase === "play";
+  const resumable = game.queue.length > 0 && game.phase !== "over";
   const gameComplete = game.phase === "over";
   const accuracy = game.attempts > 0 ? Math.round((game.score / game.attempts) * 100) : 0;
   const lastWrong = byCode.get(game.wrong[game.wrong.length - 1]);
@@ -440,8 +443,9 @@ export function CountryGame() {
             best={stats.best[bestKey(settings)]}
             newRecord={newRecord}
             practiceCount={practiceCodes.length}
-            onPlayAgain={() => resetGame()}
-            onPractice={startPractice}
+            onPlayAgain={() => start(settings)}
+            onPractice={() => start(settings, "practice")}
+            onMenu={() => setMenu(true)}
             share={game.daily ? shareText(game.daily, mode, t.modes[mode], game.missed) : null}
           />
         )}
@@ -466,11 +470,11 @@ export function CountryGame() {
         {/* Action buttons */}
         {exploring ? (
           <button
-            onClick={() => setExploring(false)}
+            onClick={closeExplore}
             className="flex items-center justify-center gap-2 h-12 px-4 rounded-md text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all"
           >
-            <X className="w-4 h-4" />
-            {t.backToGame}
+            <House className="w-4 h-4" />
+            {t.menu}
           </button>
         ) : <div className="flex items-center gap-1.5">
           <button
@@ -507,12 +511,14 @@ export function CountryGame() {
           </button>
 
           <button
-            onClick={() => setShowSettings(true)}
-            aria-label={t.settings}
+            onClick={() => setMenu(true)}
+            aria-label={t.menu}
+            title={`${t.menu} (M)`}
+            aria-keyshortcuts="M"
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 transition-all"
           >
-            <SettingsIcon className="w-4 h-4 shrink-0" />
-            <span>{t.settings}</span>
+            <House className="w-4 h-4 shrink-0" />
+            <span>{t.menu}</span>
           </button>
         </div>}
       </footer>
@@ -521,33 +527,20 @@ export function CountryGame() {
         <CountryListModal t={t} lang={lang} done={game.done} playable={playable} onClose={() => setShowCountryList(false)} />
       )}
 
-      {showSettings && (
-        <SettingsModal
+      {menu && (
+        <MainMenu
           t={t}
           settings={settings}
-          onChange={(patch) => {
-            const next = updateSettings(patch);
-            if (GAME_SETTINGS.some((k) => k in patch)) resetGame(next);
-          }}
-          onNewGame={() => {
-            resetGame();
-            setShowSettings(false);
-          }}
-          practiceCount={practiceCodes.length}
-          onPractice={() => {
-            startPractice();
-            setShowSettings(false);
-          }}
-          onDaily={() => {
-            startDaily();
-            setShowSettings(false);
-          }}
+          onPreferences={updateSettings}
+          resume={resumable ? `${t.modes[mode]} · ${t.completed(game.done.length, game.done.length + game.queue.length)}` : null}
+          onContinue={() => setMenu(false)}
+          onStart={start}
+          practiceCount={(s) => hardest(stats, playableCodes(s)).length}
           onExplore={() => {
             setPicked(null);
             setExploring(true);
-            setShowSettings(false);
+            setMenu(false);
           }}
-          onClose={() => setShowSettings(false)}
         />
       )}
     </div>

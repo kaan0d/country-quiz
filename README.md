@@ -8,6 +8,7 @@ Live: [kaandinc.com/country-quiz](https://kaandinc.com/country-quiz/) · write-u
 
 - **Modes:** country name, flag only, capital only, reverse (a country is marked in yellow, pick its name from four options), typed (type the marked country's name; accents, case and small typos are forgiven) or neighbours (click any country that borders the named one).
 - **Runs:** all 202 countries, a single continent with the map zoomed to it, or a 60 second timed run.
+- **Main menu:** opens first; pick mode, region and options, then Play, or continue the unfinished game. Daily, practice and explore start from here.
 - **Daily challenge:** the same 10 countries for every player each day, with a copyable result line of colored squares.
 - **Wrong picks:** show the distance to the answer and an arrow pointing toward it.
 - **Help:** a hint shows the continent and a circle around the target and counts as a miss; after 3 misses the answer is shown and the country goes to the back of the queue.
@@ -16,7 +17,7 @@ Live: [kaandinc.com/country-quiz](https://kaandinc.com/country-quiz/) · write-u
 - **Practice:** a round of the 20 most missed countries; a clean find lowers a country's miss count.
 - **Explore:** tap any country for its flag, capital, continent and lifetime misses; the map is tinted redder where you miss most.
 - **End screen:** time, accuracy, best score for the same setup and this game's most missed countries.
-- **Controls:** pan and pinch on touch, drag and wheel on desktop; keys H hint, S skip, N new game, 1-4 options.
+- **Controls:** pan and pinch on touch, drag and wheel on desktop; keys H hint, S skip, N new game, M menu, 1-4 options.
 - **Feedback:** synthesized sound and phone vibration on answers, can be turned off.
 - **Offline:** map shapes (world-atlas 50m) and flags are served from `public/`; a web app manifest lets it be installed to the home screen.
 
@@ -46,7 +47,7 @@ components/
   country-game.tsx       settings, game wiring, header, footer, reverse options
   world-map.tsx          map rendering, touch gestures, focus zoom, tiny-country dots
   game-summary.tsx       end screen
-  settings-modal.tsx     settings panel
+  main-menu.tsx          start screen: modes, region, options, preferences
   country-list-modal.tsx searchable country list
   modal.tsx              shared modal shell and chip button
 lib/
