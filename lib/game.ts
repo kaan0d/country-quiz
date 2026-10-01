@@ -15,6 +15,7 @@ export interface GameState {
   startedAt: number;
   endedAt: number | null;
   timeLimit: number | null; // ms, null for a full run
+  practice: boolean; // a round of the most missed countries
 }
 
 export type Action =
@@ -28,7 +29,11 @@ export type Action =
 // After this many misses the answer is shown and the country goes to the back of the queue
 export const MAX_MISSES = 3;
 
-export function newGame(queue: string[], now: number, timeLimit: number | null = null): GameState {
+export function newGame(
+  queue: string[],
+  now: number,
+  { timeLimit = null, practice = false }: { timeLimit?: number | null; practice?: boolean } = {}
+): GameState {
   return {
     queue,
     done: [],
@@ -42,6 +47,7 @@ export function newGame(queue: string[], now: number, timeLimit: number | null =
     startedAt: now,
     endedAt: queue.length ? null : now,
     timeLimit,
+    practice,
   };
 }
 

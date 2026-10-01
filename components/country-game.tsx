@@ -1,20 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo, useReducer } from "react";
+import { useState, useEffect, useMemo, useReducer, useRef } from "react";
 import { WorldMap, type HintCircle } from "./world-map";
 import { countries, shuffleArray, type Continent } from "@/lib/countries";
 import { buildHintCircle, continentBounds, countryCenters } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
 import { capitalName, countryName, strings, type Lang } from "@/lib/i18n";
-import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
+import { Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as SettingsIcon } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
 import { SettingsModal } from "./settings-modal";
+import { GameSummary } from "./game-summary";
+import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
 
 const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
+const STATS_KEY = "countryQuiz.stats";
 
 export type Mode = "name" | "flag" | "capital" | "reverse";
 
@@ -47,8 +50,11 @@ const playableCodes = (s: Settings) =>
 
 const TIME_LIMIT = 60_000;
 
+// Best scores are kept per game setup
+const bestKey = (s: Settings) => [s.mode, s.region, s.includeSmallIslands, s.timed].join("|");
+
 function startGame(s: Settings) {
-  return newGame(shuffleArray(playableCodes(s)), Date.now(), s.timed ? TIME_LIMIT : null);
+  return newGame(shuffleArray(playableCodes(s)), Date.now(), { timeLimit: s.timed ? TIME_LIMIT : null });
 }
 
 export function CountryGame() {
@@ -57,6 +63,9 @@ export function CountryGame() {
   const [showCountryList, setShowCountryList] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
+  const [stats, setStats] = useState(emptyStats);
+  const [newRecord, setNewRecord] = useState(false);
+  const recorded = useRef<number | null>(null); // startedAt of the last game added to stats
   const { lang, showWrongAnswer } = settings;
   const t = strings[lang];
 
@@ -69,6 +78,7 @@ export function CountryGame() {
     const saved = load(SETTINGS_KEY, defaultSettings);
     const savedGame = load<GameState | null>(GAME_KEY, null);
     setSettings(saved);
+    setStats(load(STATS_KEY, emptyStats));
     const resumable = savedGame?.phase !== "over" && savedGame?.queue.every((code) => byCode.has(code));
     dispatch({ type: "load", state: resumable ? savedGame! : startGame(saved) });
     setReady(true);
@@ -100,7 +110,25 @@ export function CountryGame() {
     return () => clearInterval(id);
   }, [deadline]);
 
-  const resetGame = (s = settings) => dispatch({ type: "load", state: startGame(s) });
+  const record = (g: GameState) => {
+    if (!g.attempts || recorded.current === g.startedAt) return;
+    recorded.current = g.startedAt;
+    const key = bestKey(settings);
+    const next = recordGame(stats, g, key);
+    setNewRecord(g.phase === "over" && !g.practice && stats.best[key] !== undefined && gameScore(g) > stats.best[key]);
+    setStats(next);
+    save(STATS_KEY, next);
+  };
+
+  // Finished games go into the stats right away; abandoned ones when the next game starts
+  useEffect(() => {
+    if (game.phase === "over") record(game);
+  }, [game.phase]);
+
+  const resetGame = (s = settings) => {
+    record(game);
+    dispatch({ type: "load", state: startGame(s) });
+  };
 
   const updateSettings = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
@@ -115,6 +143,11 @@ export function CountryGame() {
     // Only the game settings matter; a language change must not reshuffle the options
     [settings.mode, settings.region, settings.includeSmallIslands]
   );
+  const practiceCodes = hardest(stats, playable);
+  const startPractice = () => {
+    record(game);
+    dispatch({ type: "load", state: newGame(shuffleArray(practiceCodes), Date.now(), { practice: true }) });
+  };
   const options = useMemo(
     () => (settings.mode === "reverse" && game.queue[0] ? pickOptions(game.queue[0], [...playable]) : []),
     [settings.mode, game.queue[0], playable]
@@ -223,7 +256,7 @@ export function CountryGame() {
           </div>
         ) : game.queue.length > 1 && (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
-            {t.remaining}: {game.queue.length - 1}
+            {game.practice && `${t.practiceBadge} · `}{t.remaining}: {game.queue.length - 1}
           </div>
         )}
 
@@ -253,36 +286,18 @@ export function CountryGame() {
           </div>
         )}
 
-        {/* Game complete overlay */}
         {gameComplete && (
-          <div className="absolute inset-0 bg-background/90 flex items-center justify-center z-20 px-4">
-            <div className="bg-card p-6 sm:p-8 rounded-xl border border-border text-center w-full max-w-sm shadow-2xl">
-              <Trophy className="w-14 h-14 text-yellow-400 mx-auto mb-3" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">{game.timeLimit ? t.timeUp : t.congrats}</h2>
-              <p className="text-muted-foreground text-sm mb-5">{game.timeLimit ? t.foundInTime(game.score) : t.allDone}</p>
-              <div className="flex justify-center gap-6 mb-6">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-400">{game.score}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t.correctCount}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">{game.attempts}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t.attemptsCount}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-yellow-400">{accuracy}%</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t.accuracy}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => resetGame()}
-                className="flex items-center gap-2 mx-auto px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
-              >
-                <RotateCcw className="w-4 h-4" />
-                {t.playAgain}
-              </button>
-            </div>
-          </div>
+          <GameSummary
+            t={t}
+            lang={lang}
+            game={game}
+            byCode={byCode}
+            best={stats.best[bestKey(settings)]}
+            newRecord={newRecord}
+            practiceCount={practiceCodes.length}
+            onPlayAgain={() => resetGame()}
+            onPractice={startPractice}
+          />
         )}
       </main>
 
@@ -293,7 +308,7 @@ export function CountryGame() {
           <div className="flex items-center gap-1">
             <Target className="w-3.5 h-3.5 text-yellow-400" />
             <span className="text-foreground font-medium tabular-nums text-sm">
-              {game.done.length}/{playable.size}
+              {game.done.length}/{game.done.length + game.queue.length}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -359,6 +374,11 @@ export function CountryGame() {
           }}
           onNewGame={() => {
             resetGame();
+            setShowSettings(false);
+          }}
+          practiceCount={practiceCodes.length}
+          onPractice={() => {
+            startPractice();
             setShowSettings(false);
           }}
           onClose={() => setShowSettings(false)}

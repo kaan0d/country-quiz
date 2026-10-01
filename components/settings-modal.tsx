@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { Dumbbell, RotateCcw } from "lucide-react";
 import { Chip, Modal } from "./modal";
 import type { Strings } from "@/lib/i18n";
 import { CONTINENTS } from "@/lib/countries";
@@ -43,12 +43,16 @@ export function SettingsModal({
   settings,
   onChange,
   onNewGame,
+  practiceCount,
+  onPractice,
   onClose,
 }: {
   t: Strings;
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
   onNewGame: () => void;
+  practiceCount: number;
+  onPractice: () => void;
   onClose: () => void;
 }) {
   return (
@@ -110,6 +114,15 @@ export function SettingsModal({
           <RotateCcw className="w-4 h-4" />
           {t.newGame}
         </button>
+        {practiceCount > 0 && (
+          <button
+            onClick={onPractice}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 -mt-3 rounded-lg bg-muted text-foreground font-semibold text-sm hover:bg-muted/70 transition-colors"
+          >
+            <Dumbbell className="w-4 h-4" />
+            {t.practice(practiceCount)}
+          </button>
+        )}
       </div>
     </Modal>
   );

@@ -32,6 +32,6 @@ test("skip rotates the queue, except for the last country", () => {
 });
 
 test("time up ends the game", () => {
-  const s = run(newGame(["A", "B"], 0, 60_000), { type: "timeUp", now: 60_000 });
+  const s = run(newGame(["A", "B"], 0, { timeLimit: 60_000 }), { type: "timeUp", now: 60_000 });
   assert.deepEqual([s.phase, s.endedAt], ["over", 60_000]);
 });
