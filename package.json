@@ -2,10 +2,12 @@
   "name": "country-quiz",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test \"lib/*.test.ts\""
   },
   "dependencies": {
     "lucide-react": "^0.564.0",

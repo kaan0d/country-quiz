@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
+import { numericToAlpha3 } from "@/lib/geo";
 import {
   ComposableMap,
   Geographies,
@@ -14,40 +15,24 @@ import {
 // world-atlas@2 countries-50m, served locally so the game works offline
 const geoUrl = "/countries-50m.json";
 
-// Some regions share the same geo.id (e.g., -99 for Kosovo, Somaliland, N. Cyprus).
-// We use geo.properties.name to create unique IDs for them.
-const NAME_TO_CUSTOM_ID: Record<string, string> = {
-  "Kosovo": "CUSTOM_XKX",
-  "Somaliland": "CUSTOM_SOMALILAND",
-  "N. Cyprus": "CUSTOM_NCYPRUS",
-};
-
-// Map custom IDs to alpha-3 codes
-const CUSTOM_ID_TO_ALPHA3: Record<string, string | null> = {
-  "CUSTOM_XKX": "XKX",           // Kosovo - playable
-  "CUSTOM_SOMALILAND": null,     // Somaliland - not playable (part of Somalia visually)
-  "CUSTOM_NCYPRUS": null,        // N. Cyprus - not playable (part of Cyprus visually)
-};
-
-// Get the effective ID for a geography (uses name-based custom ID if applicable)
-function getGeoId(geo: { id?: string; properties?: { name?: string } }): string | undefined {
-  const name = geo.properties?.name ?? "";
-  if (NAME_TO_CUSTOM_ID[name]) {
-    return NAME_TO_CUSTOM_ID[name];
-  }
-  return geo.id;
+// Kosovo, Somaliland and N. Cyprus have no numeric id in the atlas, so they are matched by name.
+// Somaliland and N. Cyprus stay unplayable; they read as part of Somalia and Cyprus.
+function toAlpha3(geo: { id?: string; properties?: { name?: string } }): string | null {
+  if (geo.properties?.name === "Kosovo") return "XKX";
+  return (geo.id && numericToAlpha3[geo.id]) || null;
 }
 
+export type HintCircle = { center: [number, number]; radius: number };
+
 interface WorldMapProps {
-  onCountryClick: (countryCode: string) => void;
-  correctCountries: string[];
-  wrongCountries: string[];
-  completedCountries: string[];
-  numericToAlpha3: Record<string, string>;
-  hintCircle: { center: [number, number]; radius: number } | null;
-  includeSmallIslands: boolean;
-  smallIslandCodes: string[]; // alpha-3 codes of small islands
-  isLocked: boolean; // when true, no clicks allowed (during transition)
+  onCountryClick: (code: string) => void;
+  playable: Set<string>; // countries in this game; the rest are dimmed and not clickable
+  done: string[];
+  wrong: string[];
+  correct: string | null;
+  target: string | null; // highlighted answer
+  hintCircle: HintCircle | null;
+  locked: boolean;
 }
 
 const MAP_SCALE = 160;
@@ -74,18 +59,26 @@ function clampCoords(lng: number, lat: number, zoom: number): [number, number] {
   return [clamp(lng, -maxLng, maxLng), clamp(lat, -maxLat, maxLat)];
 }
 
+const FILL = {
+  off: ["#1e293b", "#1e293b"],
+  correct: ["#22c55e", "#16a34a"],
+  target: ["#eab308", "#ca8a04"],
+  wrong: ["#ef4444", "#dc2626"],
+  done: ["#166534", "#15803d"],
+  open: ["#334155", "#64748b"],
+} as const;
+
 function WorldMapComponent({
   onCountryClick,
-  correctCountries,
-  wrongCountries,
-  completedCountries,
-  numericToAlpha3,
+  playable,
+  done,
+  wrong,
+  correct,
+  target,
   hintCircle,
-  includeSmallIslands,
-  smallIslandCodes,
-  isLocked,
+  locked,
 }: WorldMapProps) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const [position, setPosition] = useState<{ coordinates: [number, number]; zoom: number }>({
     coordinates: [0, 10],
     zoom: 1,
@@ -106,42 +99,14 @@ function WorldMapComponent({
     midY: 0,
   });
 
-  const toAlpha3 = useCallback(
-    (id: string | undefined | null): string | null => {
-      if (id === undefined || id === null || id === "") return null;
-
-      // Check if it's a custom ID first
-      if (id.startsWith("CUSTOM_")) {
-        return CUSTOM_ID_TO_ALPHA3[id] ?? null;
-      }
-      return numericToAlpha3[id] || null;
-    },
-    [numericToAlpha3]
-  );
-
-  const getCountryFill = useCallback(
-    (id: string) => {
-      const a3 = toAlpha3(id);
-      if (!a3) return "#334155"; // Non-playable region
-      if (correctCountries.includes(a3)) return "#22c55e";
-      if (wrongCountries.includes(a3)) return "#ef4444";
-      if (completedCountries.includes(a3)) return "#166534";
-      return "#334155";
-    },
-    [correctCountries, wrongCountries, completedCountries, toAlpha3]
-  );
-
-  const getCountryHoverFill = useCallback(
-    (id: string) => {
-      const a3 = toAlpha3(id);
-      if (!a3) return "#334155"; // Non-playable region
-      if (correctCountries.includes(a3)) return "#16a34a";
-      if (wrongCountries.includes(a3)) return "#dc2626";
-      if (completedCountries.includes(a3)) return "#15803d";
-      return "#64748b";
-    },
-    [correctCountries, wrongCountries, completedCountries, toAlpha3]
-  );
+  const status = (a3: string | null): keyof typeof FILL => {
+    if (!a3 || !playable.has(a3)) return "off";
+    if (a3 === correct) return "correct";
+    if (a3 === target) return "target";
+    if (wrong.includes(a3)) return "wrong";
+    if (done.includes(a3)) return "done";
+    return "open";
+  };
 
   const positionRef = useRef(position);
   useEffect(() => {
@@ -283,91 +248,33 @@ function WorldMapComponent({
           <Graticule stroke="#1e293b" strokeWidth={0.3} />
 
           <Geographies geography={geoUrl}>
-            {({ geographies }) => {
-              // Use custom IDs for regions that share the same geo.id
-              const geoWithIds = geographies
-                .map(g => ({ geo: g, effectiveId: getGeoId(g) }))
-                .filter((item): item is { geo: typeof item.geo; effectiveId: string } =>
-                  item.effectiveId !== undefined
-                );
-
-              const completedSet = new Set(completedCountries);
-              const normal = geoWithIds.filter(
-                ({ effectiveId }) => {
-                  const a3 = toAlpha3(effectiveId);
-                  return effectiveId !== hoveredId && (!a3 || !completedSet.has(a3));
-                }
-              );
-              const comp = geoWithIds.filter(
-                ({ effectiveId }) => {
-                  const a3 = toAlpha3(effectiveId);
-                  return effectiveId !== hoveredId && a3 && completedSet.has(a3);
-                }
-              );
-              const hov = geoWithIds.find(({ effectiveId }) => effectiveId === hoveredId);
-              const ordered = [...normal, ...comp, ...(hov ? [hov] : [])];
-
-              return ordered.map(({ geo, effectiveId }) => {
-                const a3 = toAlpha3(effectiveId);
-                const isNonPlayable = a3 === null; // Somaliland, N. Cyprus, etc.
-
-                const isHovered = effectiveId === hoveredId && !isNonPlayable;
-                const isCompleted = a3 ? completedCountries.includes(a3) : false;
-                const isWrong = a3 ? wrongCountries.includes(a3) : false;
-                const isCorrect = a3 ? correctCountries.includes(a3) : false;
-                const isExcludedIsland = a3 ? (!includeSmallIslands && smallIslandCodes.includes(a3)) : false;
-                const isDisabled = isNonPlayable || isLocked || isCompleted || isWrong || isCorrect || isExcludedIsland;
-
-                const fill =
-                  isHovered && !isDisabled
-                    ? getCountryHoverFill(effectiveId)
-                    : getCountryFill(effectiveId);
-                const strokeColor =
-                  isHovered && !isDisabled
-                    ? "#ffffff"
-                    : isCompleted
-                      ? "#4ade80"
-                      : "#1e293b";
-
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={() => !isNonPlayable && setHoveredId(effectiveId)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    onTouchStart={() => !isNonPlayable && setHoveredId(effectiveId)}
-                    onClick={() => {
-                      if (!isDisabled && !gesture.current.hasMoved) {
-                        onCountryClick(effectiveId);
-                      }
-                    }}
-                    style={{
-                      default: {
-                        fill,
-                        stroke: strokeColor,
-                        strokeWidth: 0.05,
-                        outline: "none",
-                        cursor: isDisabled ? "default" : "pointer",
-                        transition: "fill 0.15s",
-                      },
-                      hover: {
-                        fill,
-                        stroke: strokeColor,
-                        strokeWidth: 0.05,
-                        outline: "none",
-                        cursor: isDisabled ? "default" : "pointer",
-                      },
-                      pressed: {
-                        fill,
-                        stroke: strokeColor,
-                        strokeWidth: 0.05,
-                        outline: "none",
-                      },
-                    }}
-                  />
-                );
-              });
-            }}
+            {({ geographies }) =>
+              geographies
+                .map((geo) => ({ geo, a3: toAlpha3(geo) }))
+                // Hovered country last so its outline is drawn on top
+                .sort((x, y) => Number(x.a3 === hovered && !!x.a3) - Number(y.a3 === hovered && !!y.a3))
+                .map(({ geo, a3 }) => {
+                  const st = status(a3);
+                  const clickable = !locked && (st === "open" || st === "target");
+                  const isHovered = clickable && a3 === hovered;
+                  const fill = FILL[st][isHovered ? 1 : 0];
+                  const stroke = isHovered ? "#ffffff" : st === "done" ? "#4ade80" : "#1e293b";
+                  const style = { fill, stroke, strokeWidth: 0.05, outline: "none", cursor: clickable ? "pointer" : "default" };
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={() => setHovered(a3)}
+                      onMouseLeave={() => setHovered(null)}
+                      onTouchStart={() => setHovered(a3)}
+                      onClick={() => {
+                        if (clickable && a3 && !gesture.current.hasMoved) onCountryClick(a3);
+                      }}
+                      style={{ default: { ...style, transition: "fill 0.15s" }, hover: style, pressed: style }}
+                    />
+                  );
+                })
+            }
           </Geographies>
 
           {hintCircle && (
