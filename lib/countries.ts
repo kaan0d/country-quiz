@@ -194,7 +194,7 @@ export const countries: Country[] = [
   { name: "Tonga", en: "Tonga", code: "TON", code2: "to", continent: "oceania", capital: "Nukualofa", capitalEn: "Nukuʻalofa", isSmallIsland: true },
   { name: "Trinidad ve Tobago", en: "Trinidad and Tobago", code: "TTO", code2: "tt", continent: "northAmerica", capital: "Port of Spain", isSmallIsland: true },
   { name: "Tunus", en: "Tunisia", code: "TUN", code2: "tn", continent: "africa", capital: "Tunus", capitalEn: "Tunis" },
-  { name: "Türkiye", en: "Türkiye", code: "TUR", code2: "tr", continent: "europe", capital: "Ankara" },
+  { name: "Türkiye", en: "Turkey", code: "TUR", code2: "tr", continent: "europe", capital: "Ankara" },
   { name: "Türkmenistan", en: "Turkmenistan", code: "TKM", code2: "tm", continent: "asia", capital: "Aşkabat", capitalEn: "Ashgabat" },
   { name: "Uganda", en: "Uganda", code: "UGA", code2: "ug", continent: "africa", capital: "Kampala" },
   { name: "Ukrayna", en: "Ukraine", code: "UKR", code2: "ua", continent: "europe", capital: "Kiev", capitalEn: "Kyiv" },

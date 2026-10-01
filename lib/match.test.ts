@@ -8,6 +8,7 @@ const get = (code: string) => countries.find((c) => c.code === code)!;
 test("typed names match with accents, case and small typos", () => {
   assert.equal(matchTyped("turkiye", get("TUR"), countries), "TUR");
   assert.equal(matchTyped("TÜRKİYE", get("TUR"), countries), "TUR");
+  assert.equal(matchTyped("Turkey", get("TUR"), countries), "TUR");
   assert.equal(matchTyped("Fildişi Sahili", get("CIV"), countries), "CIV");
   assert.equal(matchTyped("argentna", get("ARG"), countries), "ARG");
 });
