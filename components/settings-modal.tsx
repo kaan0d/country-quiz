@@ -107,6 +107,12 @@ export function SettingsModal({
           value={settings.showWrongAnswer}
           onChange={(v) => onChange({ showWrongAnswer: v })}
         />
+        <Toggle
+          label={t.sound}
+          description={t.soundInfo}
+          value={settings.sound}
+          onChange={(v) => onChange({ sound: v })}
+        />
         <button
           onClick={onNewGame}
           className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"

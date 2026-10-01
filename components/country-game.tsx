@@ -11,6 +11,7 @@ import { Target, Check, Globe, Lightbulb, SkipForward, List, X, Settings as Sett
 import { CountryListModal } from "./country-list-modal";
 import { SettingsModal } from "./settings-modal";
 import { GameSummary } from "./game-summary";
+import { answerFeedback } from "@/lib/feedback";
 import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
@@ -28,8 +29,9 @@ export type Settings = {
   region: Continent | "all";
   includeSmallIslands: boolean;
   showWrongAnswer: boolean;
+  sound: boolean;
 };
-const defaultSettings: Settings = { lang: "tr", mode: "name", timed: false, region: "all", includeSmallIslands: true, showWrongAnswer: false };
+const defaultSettings: Settings = { lang: "tr", mode: "name", timed: false, region: "all", includeSmallIslands: true, showWrongAnswer: false, sound: true };
 // Changing one of these starts a new game
 const GAME_SETTINGS: (keyof Settings)[] = ["mode", "timed", "region", "includeSmallIslands"];
 
@@ -125,6 +127,12 @@ export function CountryGame() {
     if (game.phase === "over") record(game);
   }, [game.phase]);
 
+  const answer = (code: string) => {
+    const next = reducer(game, { type: "answer", code });
+    if (next !== game && settings.sound) answerFeedback(next.phase === "correct");
+    dispatch({ type: "answer", code });
+  };
+
   const resetGame = (s = settings) => {
     record(game);
     dispatch({ type: "load", state: startGame(s) });
@@ -167,7 +175,7 @@ export function CountryGame() {
       if (key === "h" && settings.mode !== "reverse") dispatch({ type: "hint" });
       else if (key === "s") dispatch({ type: "skip" });
       else if (key === "n") resetGame();
-      else if (options[Number(key) - 1]) dispatch({ type: "answer", code: options[Number(key) - 1] });
+      else if (options[Number(key) - 1]) answer(options[Number(key) - 1]);
       else return;
       e.preventDefault();
     };
@@ -251,7 +259,7 @@ export function CountryGame() {
       {/* ── Map ────────────────────────────────────────────────── */}
       <main className="min-h-0 flex-1 relative overflow-hidden">
         <WorldMap
-          onCountryClick={(code) => dispatch({ type: "answer", code })}
+          onCountryClick={answer}
           playable={playable}
           focus={settings.region === "all" ? null : continentBounds[settings.region]}
           done={game.done}
@@ -292,7 +300,7 @@ export function CountryGame() {
               return (
                 <button
                   key={code}
-                  onClick={() => dispatch({ type: "answer", code })}
+                  onClick={() => answer(code)}
                   disabled={!playing || game.wrong.includes(code)}
                   className={`px-3 py-2.5 rounded-lg border backdrop-blur text-sm font-medium text-left truncate transition-colors ${color}`}
                 >
