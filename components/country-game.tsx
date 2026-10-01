@@ -15,6 +15,7 @@ import { answerFeedback } from "@/lib/feedback";
 import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
+const allCodes = new Set(byCode.keys());
 
 const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
@@ -67,6 +68,8 @@ export function CountryGame() {
   const [settings, setSettings] = useState(defaultSettings);
   const [stats, setStats] = useState(emptyStats);
   const [newRecord, setNewRecord] = useState(false);
+  const [exploring, setExploring] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null); // country tapped in the explore view
   const recorded = useRef<number | null>(null); // startedAt of the last game added to stats
   const { lang, showWrongAnswer } = settings;
   const t = strings[lang];
@@ -172,6 +175,10 @@ export function CountryGame() {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement) return;
       const key = e.key.toLowerCase();
+      if (exploring) {
+        if (key === "escape") setExploring(false);
+        return;
+      }
       if (key === "h" && settings.mode !== "reverse") dispatch({ type: "hint" });
       else if (key === "s") dispatch({ type: "skip" });
       else if (key === "n") resetGame();
@@ -199,6 +206,7 @@ export function CountryGame() {
   const accuracy = game.attempts > 0 ? Math.round((game.score / game.attempts) * 100) : 0;
   const lastWrong = byCode.get(game.wrong[game.wrong.length - 1]);
   const mode = settings.mode;
+  const pickedCountry = picked ? byCode.get(picked) : undefined;
   // How far the wrong pick is from the answer, for the modes where the player searches the map
   const wrongCenter = lastWrong && countryCenters[lastWrong.code];
   const answerCenter = current && countryCenters[current.code];
@@ -210,7 +218,12 @@ export function CountryGame() {
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 bg-card border-b border-border">
-        {current && !gameComplete && (
+        {exploring ? (
+          <div className="text-center">
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">{t.explore}</h1>
+            <p className="text-xs text-muted-foreground">{t.exploreInfo}</p>
+          </div>
+        ) : current && !gameComplete && (
           <div className="flex items-center gap-3">
             {(mode === "name" || mode === "flag") && (
               <img
@@ -235,7 +248,7 @@ export function CountryGame() {
         )}
 
         {/* Feedback strip */}
-        <div className="h-5 flex items-center justify-center">
+        {!exploring && <div className="h-5 flex items-center justify-center">
           {game.phase === "correct" && (
             <span className="flex items-center gap-1 text-green-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
               <Check className="w-3.5 h-3.5" /> {t.correct}
@@ -263,12 +276,25 @@ export function CountryGame() {
               )}
             </span>
           )}
-        </div>
+        </div>}
       </header>
 
       {/* ── Map ────────────────────────────────────────────────── */}
       <main className="min-h-0 flex-1 relative overflow-hidden">
-        <WorldMap
+        {exploring ? (
+          <WorldMap
+            onCountryClick={setPicked}
+            playable={allCodes}
+            focus={settings.region === "all" ? null : continentBounds[settings.region]}
+            done={[]}
+            wrong={[]}
+            correct={null}
+            target={picked}
+            hintCircle={null}
+            locked={false}
+            heat={stats.misses}
+          />
+        ) : <WorldMap
           onCountryClick={answer}
           playable={playable}
           focus={settings.region === "all" ? null : continentBounds[settings.region]}
@@ -278,15 +304,30 @@ export function CountryGame() {
           target={game.phase === "revealed" || mode === "reverse" ? game.queue[0] : null}
           hintCircle={playing ? hintCircle : null}
           locked={!playing || mode === "reverse"}
-        />
+        />}
 
-        {game.hintUsed && current && !gameComplete && (
+        {exploring && pickedCountry && (
+          <div className="absolute bottom-2 inset-x-2 z-10 max-w-sm mx-auto flex items-center gap-3 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2.5">
+            <img src={`/flags/${pickedCountry.code2}.png`} alt="" width={48} height={32} className="rounded-sm object-cover shrink-0" style={{ width: 48, height: 32 }} />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-foreground truncate">{countryName(pickedCountry, lang)}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {[capitalName(pickedCountry, lang), t.continents[pickedCountry.continent]].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            <p className={`text-xs tabular-nums shrink-0 ${stats.misses[pickedCountry.code] ? "text-red-400" : "text-muted-foreground"}`}>
+              {t.lifetimeMisses(stats.misses[pickedCountry.code] ?? 0)}
+            </p>
+          </div>
+        )}
+
+        {!exploring && game.hintUsed && current && !gameComplete && (
           <div className="absolute top-2 left-2 bg-yellow-500 text-yellow-950 px-2.5 py-1 rounded-md font-semibold text-xs z-10 shadow-lg pointer-events-none">
             {t.continent}: {t.continents[current.continent]}
           </div>
         )}
 
-        {gameComplete ? null : deadline ? (
+        {gameComplete || exploring ? null : deadline ? (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-yellow-500/40 text-yellow-400 px-2.5 py-1 rounded-md text-sm font-semibold tabular-nums z-10 pointer-events-none">
             {Math.max(0, Math.ceil((deadline - now) / 1000))} s
           </div>
@@ -296,7 +337,7 @@ export function CountryGame() {
           </div>
         )}
 
-        {mode === "reverse" && !gameComplete && (
+        {mode === "reverse" && !gameComplete && !exploring && (
           <div className="absolute bottom-2 inset-x-2 z-10 grid grid-cols-2 gap-1.5 max-w-xl mx-auto">
             {options.map((code, i) => {
               const c = byCode.get(code)!;
@@ -322,7 +363,7 @@ export function CountryGame() {
           </div>
         )}
 
-        {gameComplete && (
+        {gameComplete && !exploring && (
           <GameSummary
             t={t}
             lang={lang}
@@ -354,7 +395,15 @@ export function CountryGame() {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-1.5">
+        {exploring ? (
+          <button
+            onClick={() => setExploring(false)}
+            className="flex items-center justify-center gap-2 h-12 px-4 rounded-md text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all"
+          >
+            <X className="w-4 h-4" />
+            {t.backToGame}
+          </button>
+        ) : <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowCountryList(true)}
             aria-label={t.allCountries}
@@ -396,7 +445,7 @@ export function CountryGame() {
             <SettingsIcon className="w-4 h-4 shrink-0" />
             <span>{t.settings}</span>
           </button>
-        </div>
+        </div>}
       </footer>
 
       {showCountryList && (
@@ -418,6 +467,11 @@ export function CountryGame() {
           practiceCount={practiceCodes.length}
           onPractice={() => {
             startPractice();
+            setShowSettings(false);
+          }}
+          onExplore={() => {
+            setPicked(null);
+            setExploring(true);
             setShowSettings(false);
           }}
           onClose={() => setShowSettings(false)}

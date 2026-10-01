@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, RotateCcw } from "lucide-react";
+import { Dumbbell, Map as MapIcon, RotateCcw } from "lucide-react";
 import { Chip, Modal } from "./modal";
 import type { Strings } from "@/lib/i18n";
 import { CONTINENTS } from "@/lib/countries";
@@ -45,6 +45,7 @@ export function SettingsModal({
   onNewGame,
   practiceCount,
   onPractice,
+  onExplore,
   onClose,
 }: {
   t: Strings;
@@ -53,6 +54,7 @@ export function SettingsModal({
   onNewGame: () => void;
   practiceCount: number;
   onPractice: () => void;
+  onExplore: () => void;
   onClose: () => void;
 }) {
   return (
@@ -130,6 +132,13 @@ export function SettingsModal({
             {t.practice(practiceCount)}
           </button>
         )}
+        <button
+          onClick={onExplore}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 -mt-3 rounded-lg bg-muted text-foreground font-semibold text-sm hover:bg-muted/70 transition-colors"
+        >
+          <MapIcon className="w-4 h-4" />
+          {t.explore}
+        </button>
         <p className="text-xs text-muted-foreground text-center">{t.shortcuts}</p>
       </div>
     </Modal>

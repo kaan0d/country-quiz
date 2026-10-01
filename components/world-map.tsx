@@ -34,7 +34,11 @@ interface WorldMapProps {
   target: string | null; // highlighted answer
   hintCircle: HintCircle | null;
   locked: boolean;
+  heat?: Record<string, number>; // explore view: open countries are tinted by lifetime misses
 }
+
+// 0 misses is the normal open color, 5 or more is full red
+const heatFill = (n: number) => `color-mix(in srgb, #ef4444 ${Math.min(n, 5) * 20}%, #334155)`;
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 48;
@@ -88,6 +92,7 @@ function WorldMapComponent({
   target,
   hintCircle,
   locked,
+  heat,
 }: WorldMapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [position, setPosition] = useState<{ coordinates: [number, number]; zoom: number }>({
@@ -299,7 +304,7 @@ function WorldMapComponent({
                   ...items.map(({ geo, a3 }) => {
                     const st = status(a3);
                     const clickable = isClickable(st);
-                    const fill = FILL[st][clickable && a3 === hovered ? 1 : 0];
+                    const fill = heat && st === "open" && a3 !== hovered ? heatFill(heat[a3!] ?? 0) : FILL[st][clickable && a3 === hovered ? 1 : 0];
                     const stroke = st === "done" ? "#4ade80" : "#1e293b";
                     const style = { fill, stroke, strokeWidth: 0.05, outline: "none", cursor: clickable ? "pointer" : "default" };
                     return (
@@ -341,7 +346,7 @@ function WorldMapComponent({
                   {/* Constant on-screen size: divide by zoom, the group scales its children */}
                   <circle
                     r={4 / position.zoom}
-                    fill={FILL[st][isHovered ? 1 : 0]}
+                    fill={heat && st === "open" && !isHovered ? heatFill(heat[a3] ?? 0) : FILL[st][isHovered ? 1 : 0]}
                     stroke={isHovered ? "#ffffff" : "#94a3b8"}
                     strokeWidth={0.8 / position.zoom}
                     style={{ cursor: clickable ? "pointer" : "default" }}
