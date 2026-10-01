@@ -178,7 +178,7 @@ export function CountryListModal({
                       : "bg-muted/30 border-transparent"
                     }`}
                 >
-                                    <img
+                  <img
                     src={`/flags/${country.code2}.png`}
                     alt={`${country.name} bayrağı`}
                     width={28}
