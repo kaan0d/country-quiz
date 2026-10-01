@@ -17,6 +17,7 @@ export interface GameState {
   timeLimit: number | null; // ms, null for a full run
   practice: boolean; // a round of the most missed countries
   daily?: string | null; // date of a daily challenge; missing in games saved before it existed
+  pausedAt?: number | null; // set while the menu is open; the clock does not run
 }
 
 export type Action =
@@ -25,7 +26,9 @@ export type Action =
   | { type: "hint" }
   | { type: "skip" }
   | { type: "next"; now: number }
-  | { type: "timeUp"; now: number };
+  | { type: "timeUp"; now: number }
+  | { type: "pause"; now: number }
+  | { type: "resume"; now: number };
 
 // After this many misses the answer is shown and the country goes to the back of the queue
 export const MAX_MISSES = 3;
@@ -70,6 +73,9 @@ function miss(s: GameState, extra: Partial<GameState>): GameState {
 
 export function reducer(s: GameState, a: Action): GameState {
   if (a.type === "load") return a.state;
+  // Resuming moves the start forward by the paused time, so the timer and the end screen skip it
+  if (a.type === "pause") return s.phase === "over" || s.pausedAt ? s : { ...s, pausedAt: a.now };
+  if (a.type === "resume") return s.pausedAt ? { ...s, startedAt: s.startedAt + a.now - s.pausedAt, pausedAt: null } : s;
   if (a.type === "timeUp") {
     return s.phase === "over" ? s : { ...s, phase: "over", endedAt: a.now };
   }

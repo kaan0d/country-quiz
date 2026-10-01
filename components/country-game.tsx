@@ -114,7 +114,13 @@ export function CountryGame() {
 
   // Countdown for a timed run
   const [now, setNow] = useState(0);
-  const deadline = game.timeLimit && game.phase !== "over" ? game.startedAt + game.timeLimit : null;
+  const deadline = game.timeLimit && game.phase !== "over" && !game.pausedAt ? game.startedAt + game.timeLimit : null;
+
+  // The clock stops while the menu or the explore view (opened from the menu) covers the game
+  const away = menu || exploring;
+  useEffect(() => {
+    dispatch({ type: away ? "pause" : "resume", now: Date.now() });
+  }, [away]);
   useEffect(() => {
     if (!deadline) return;
     const tick = () => {

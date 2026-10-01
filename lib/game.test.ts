@@ -35,3 +35,13 @@ test("time up ends the game", () => {
   const s = run(newGame(["A", "B"], 0, { timeLimit: 60_000 }), { type: "timeUp", now: 60_000 });
   assert.deepEqual([s.phase, s.endedAt], ["over", 60_000]);
 });
+
+test("paused time does not count", () => {
+  let s = run(newGame(["A", "B"], 0, { timeLimit: 60_000 }), { type: "pause", now: 10_000 }, { type: "pause", now: 20_000 });
+  assert.equal(s.pausedAt, 10_000);
+  s = run(s, { type: "resume", now: 50_000 });
+  assert.deepEqual([s.startedAt, s.pausedAt], [40_000, null]);
+  assert.equal(run(s, { type: "resume", now: 90_000 }), s);
+  const over = run(s, { type: "timeUp", now: 100_000 });
+  assert.equal(run(over, { type: "pause", now: 100_000 }), over);
+});

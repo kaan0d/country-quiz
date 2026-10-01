@@ -8,7 +8,7 @@ Live: [kaandinc.com/country-quiz](https://kaandinc.com/country-quiz/) · write-u
 
 - **Modes:** country name, flag only, capital only, reverse (a country is marked in yellow, pick its name from four options), typed (type the marked country's name; accents, case and small typos are forgiven) or neighbours (click any country that borders the named one).
 - **Runs:** all 202 countries, a single continent with the map zoomed to it, or a 60 second timed run.
-- **Main menu:** opens first; pick mode, region and options, then Play, or continue the unfinished game. Daily, practice and explore start from here.
+- **Main menu:** opens first; pick mode, region and options, then Play, or continue the unfinished game. Daily, practice and explore start from here. The game clock stops while it is open.
 - **Daily challenge:** the same 10 countries for every player each day, with a copyable result line of colored squares.
 - **Wrong picks:** show the distance to the answer and an arrow pointing toward it.
 - **Help:** a hint shows the continent and a circle around the target and counts as a miss; after 3 misses the answer is shown and the country goes to the back of the queue.
