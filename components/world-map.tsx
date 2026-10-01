@@ -266,17 +266,15 @@ function WorldMapComponent({
           <Graticule stroke="#1e293b" strokeWidth={0.3} />
 
           <Geographies geography={geoUrl}>
-            {({ geographies }) =>
-              geographies
-                .map((geo) => ({ geo, a3: toAlpha3(geo) }))
-                // Hovered country last so its outline is drawn on top
-                .sort((x, y) => Number(x.a3 === hovered && !!x.a3) - Number(y.a3 === hovered && !!y.a3))
-                .map(({ geo, a3 }) => {
+            {({ geographies }) => {
+              const items = geographies.map((geo) => ({ geo, a3: toAlpha3(geo) }));
+              const isClickable = (st: keyof typeof FILL) => !locked && (st === "open" || st === "target");
+              return [
+                ...items.map(({ geo, a3 }) => {
                   const st = status(a3);
-                  const clickable = !locked && (st === "open" || st === "target");
-                  const isHovered = clickable && a3 === hovered;
-                  const fill = FILL[st][isHovered ? 1 : 0];
-                  const stroke = isHovered ? "#ffffff" : st === "done" ? "#4ade80" : "#1e293b";
+                  const clickable = isClickable(st);
+                  const fill = FILL[st][clickable && a3 === hovered ? 1 : 0];
+                  const stroke = st === "done" ? "#4ade80" : "#1e293b";
                   const style = { fill, stroke, strokeWidth: 0.05, outline: "none", cursor: clickable ? "pointer" : "default" };
                   return (
                     <Geography
@@ -284,15 +282,26 @@ function WorldMapComponent({
                       geography={geo}
                       onMouseEnter={() => setHovered(a3)}
                       onMouseLeave={() => setHovered(null)}
-                      onTouchStart={() => setHovered(a3)}
                       onClick={() => {
                         if (clickable && a3 && !gesture.current.hasMoved) onCountryClick(a3);
                       }}
                       style={{ default: { ...style, transition: "fill 0.15s" }, hover: style, pressed: style }}
                     />
                   );
-                })
-            }
+                }),
+                // Hover outline drawn on top as a separate, non-interactive copy. Reordering the
+                // hovered path itself would move it in the DOM mid-click and the click would be lost.
+                ...items
+                  .filter(({ a3 }) => a3 && a3 === hovered && isClickable(status(a3)))
+                  .map(({ geo }) => (
+                    <Geography
+                      key={`hover-${geo.rsmKey}`}
+                      geography={geo}
+                      style={{ default: { fill: "none", stroke: "#ffffff", strokeWidth: 1.5, vectorEffect: "non-scaling-stroke", pointerEvents: "none", outline: "none" } }}
+                    />
+                  )),
+              ];
+            }}
           </Geographies>
 
           {[...tinyCountries].map((a3) => {
