@@ -4,11 +4,18 @@ import { useState, useEffect, useMemo, useReducer } from "react";
 import { WorldMap, type HintCircle } from "./world-map";
 import { countries, getFilteredCountries, shuffleArray } from "@/lib/countries";
 import { buildHintCircle, countryCenters } from "@/lib/geo";
-import { newGame, reducer, MAX_MISSES } from "@/lib/game";
+import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
+import { load, save } from "@/lib/storage";
 import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
+
+const SETTINGS_KEY = "countryQuiz.settings";
+const GAME_KEY = "countryQuiz.game";
+
+const defaultSettings = { includeSmallIslands: true, showWrongAnswer: false };
+type Settings = typeof defaultSettings;
 
 function startGame(includeSmallIslands: boolean) {
   return newGame(shuffleArray(getFilteredCountries(includeSmallIslands)).map((c) => c.code), Date.now());
@@ -18,17 +25,22 @@ export function CountryGame() {
   const [game, dispatch] = useReducer(reducer, null, () => newGame([], 0));
   const [ready, setReady] = useState(false);
   const [showCountryList, setShowCountryList] = useState(false);
-  const [includeSmallIslands, setIncludeSmallIslands] = useState(true);
-  const [showWrongAnswer, setShowWrongAnswer] = useState(false);
+  const [settings, setSettings] = useState(defaultSettings);
+  const { includeSmallIslands, showWrongAnswer } = settings;
 
-  // Load settings from localStorage on mount and start a game
+  // Restore settings and the unfinished game, or start a new one
   useEffect(() => {
-    const shouldInclude = localStorage.getItem("countryGame_includeSmallIslands") !== "false";
-    setIncludeSmallIslands(shouldInclude);
-    setShowWrongAnswer(localStorage.getItem("countryGame_showWrongAnswer") === "true");
-    dispatch({ type: "load", state: startGame(shouldInclude) });
+    const saved = load(SETTINGS_KEY, defaultSettings);
+    const savedGame = load<GameState | null>(GAME_KEY, null);
+    setSettings(saved);
+    const resumable = savedGame?.phase !== "over" && savedGame?.queue.every((code) => byCode.has(code));
+    dispatch({ type: "load", state: resumable ? savedGame! : startGame(saved.includeSmallIslands) });
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (ready) save(GAME_KEY, game);
+  }, [ready, game]);
 
   // Short pause on a correct or revealed answer, then the next country
   useEffect(() => {
@@ -40,15 +52,11 @@ export function CountryGame() {
   const resetGame = (withSmallIslands = includeSmallIslands) =>
     dispatch({ type: "load", state: startGame(withSmallIslands) });
 
-  const handleToggleSmallIslands = (value: boolean) => {
-    setIncludeSmallIslands(value);
-    localStorage.setItem("countryGame_includeSmallIslands", String(value));
-    resetGame(value);
-  };
-
-  const handleToggleShowWrongAnswer = (value: boolean) => {
-    setShowWrongAnswer(value);
-    localStorage.setItem("countryGame_showWrongAnswer", String(value));
+  const updateSettings = (patch: Partial<Settings>) => {
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    save(SETTINGS_KEY, next);
+    return next;
   };
 
   const current = byCode.get(game.queue[0]);
@@ -249,9 +257,9 @@ export function CountryGame() {
         <CountryListModal
           completedCountries={game.done}
           includeSmallIslands={includeSmallIslands}
-          onToggleSmallIslands={handleToggleSmallIslands}
+          onToggleSmallIslands={(value) => resetGame(updateSettings({ includeSmallIslands: value }).includeSmallIslands)}
           showWrongAnswer={showWrongAnswer}
-          onToggleShowWrongAnswer={handleToggleShowWrongAnswer}
+          onToggleShowWrongAnswer={(value) => updateSettings({ showWrongAnswer: value })}
           onClose={() => setShowCountryList(false)}
         />
       )}
