@@ -1,4 +1,4 @@
-import type { Continent } from "./countries";
+import { countries, type Continent } from "./countries";
 
 // ISO numeric → alpha-3
 export const numericToAlpha3: Record<string, string> = {
@@ -128,3 +128,9 @@ export const countryCenters: Partial<Record<string, [number, number]>> = {
   ZWE: [30, -20], ESH: [-13.2, 24.5], GRL: [-42, 72], PRI: [-66.5, 18.2],
   FLK: [-59, -52], ATA: [0, -80], NCL: [165.6, -21.3],
 };
+
+// Too small to click as a shape at normal zoom; the map draws a dot on top of them
+export const tinyCountries = new Set([
+  ...countries.filter((c) => c.isSmallIsland).map((c) => c.code),
+  "VAT", "MCO", "SMR", "LIE", "AND", "LUX",
+]);

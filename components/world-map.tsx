@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef, useEffect } from "react";
-import { numericToAlpha3 } from "@/lib/geo";
+import { countryCenters, numericToAlpha3, tinyCountries } from "@/lib/geo";
 import {
   ComposableMap,
   Geographies,
@@ -276,6 +276,31 @@ function WorldMapComponent({
                 })
             }
           </Geographies>
+
+          {[...tinyCountries].map((a3) => {
+            const center = countryCenters[a3];
+            const st = status(a3);
+            if (!center || st === "off") return null;
+            const clickable = !locked && (st === "open" || st === "target");
+            const isHovered = clickable && a3 === hovered;
+            return (
+              <Marker key={a3} coordinates={center}>
+                {/* Constant on-screen size: divide by zoom, the group scales its children */}
+                <circle
+                  r={4 / position.zoom}
+                  fill={FILL[st][isHovered ? 1 : 0]}
+                  stroke={isHovered ? "#ffffff" : "#94a3b8"}
+                  strokeWidth={0.8 / position.zoom}
+                  style={{ cursor: clickable ? "pointer" : "default" }}
+                  onMouseEnter={() => setHovered(a3)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => {
+                    if (clickable && !gesture.current.hasMoved) onCountryClick(a3);
+                  }}
+                />
+              </Marker>
+            );
+          })}
 
           {hintCircle && (
             <Marker coordinates={hintCircle.center}>
