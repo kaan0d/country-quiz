@@ -227,3 +227,8 @@ export function shuffleArray<T>(arr: T[]): T[] {
   }
   return result;
 }
+
+// Sub-path the site is served from (see next.config.mjs)
+export const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+export const flagUrl = (code2: string) => `${BASE}/flags/${code2}.png`;

@@ -22,10 +22,10 @@ World map quiz in Turkish and English: find countries on the map, or name the on
 
 ```sh
 pnpm install
-pnpm dev      # http://localhost:3000
+pnpm dev      # http://localhost:3000/country-quiz
 pnpm test     # reducer, stats, geo, daily and name matching tests (node:test)
 node scripts/neighbors.ts   # regenerate lib/neighbors.ts after the map file changes
-pnpm build && pnpm start
+pnpm build    # static site in out/, deployed to GitHub Pages on every push to main
 ```
 
 ## Limits

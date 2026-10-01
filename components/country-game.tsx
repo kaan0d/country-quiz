@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useReducer, useRef } from "react";
 import { WorldMap, type HintCircle } from "./world-map";
-import { countries, shuffleArray, type Continent } from "@/lib/countries";
+import { countries, flagUrl, shuffleArray, type Continent } from "@/lib/countries";
 import { buildHintCircle, continentBounds, countryCenters, offBy } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
@@ -258,7 +258,7 @@ export function CountryGame() {
             {(mode === "name" || mode === "flag" || mode === "neighbors") && (
               <img
                 key={current.code}
-                src={`/flags/${current.code2}.png`}
+                src={flagUrl(current.code2)}
                 alt={mode === "flag" ? t.flagQuestion : t.flagAlt(countryName(current, lang))}
                 width={flagW}
                 height={flagH}
@@ -343,7 +343,7 @@ export function CountryGame() {
 
         {exploring && pickedCountry && (
           <div className="absolute bottom-2 inset-x-2 z-10 max-w-sm mx-auto flex items-center gap-3 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2.5">
-            <img src={`/flags/${pickedCountry.code2}.png`} alt="" width={48} height={32} className="rounded-sm object-cover shrink-0" style={{ width: 48, height: 32 }} />
+            <img src={flagUrl(pickedCountry.code2)} alt="" width={48} height={32} className="rounded-sm object-cover shrink-0" style={{ width: 48, height: 32 }} />
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-foreground truncate">{countryName(pickedCountry, lang)}</p>
               <p className="text-xs text-muted-foreground truncate">

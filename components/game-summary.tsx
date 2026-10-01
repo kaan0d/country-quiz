@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Dumbbell, RotateCcw, Share2, Trophy } from "lucide-react";
-import type { Country } from "@/lib/countries";
+import { flagUrl, type Country } from "@/lib/countries";
 import type { GameState } from "@/lib/game";
 import { countryName, type Lang, type Strings } from "@/lib/i18n";
 
@@ -94,7 +94,7 @@ export function GameSummary({
                 if (!c) return null;
                 return (
                   <li key={code} className="flex items-center gap-2 text-sm text-foreground">
-                    <img src={`/flags/${c.code2}.png`} alt="" width={21} height={14} className="rounded-sm object-cover" style={{ width: 21, height: 14 }} />
+                    <img src={flagUrl(c.code2)} alt="" width={21} height={14} className="rounded-sm object-cover" style={{ width: 21, height: 14 }} />
                     <span className="flex-1 truncate">{countryName(c, lang)}</span>
                     <span className="text-red-400 tabular-nums">{n}</span>
                   </li>

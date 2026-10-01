@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { countries, CONTINENTS, type Continent } from "@/lib/countries";
+import { countries, CONTINENTS, flagUrl, type Continent } from "@/lib/countries";
 import { countryName, type Lang, type Strings } from "@/lib/i18n";
 import { Check, Search } from "lucide-react";
 import { Chip, Modal } from "./modal";
@@ -70,7 +70,7 @@ export function CountryListModal({ t, lang, done, playable, onClose }: CountryLi
                     }`}
                 >
                   <img
-                    src={`/flags/${country.code2}.png`}
+                    src={flagUrl(country.code2)}
                     alt={t.flagAlt(countryName(country, lang))}
                     width={28}
                     height={20}

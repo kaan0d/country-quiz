@@ -2,6 +2,7 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { countryCenters, numericToAlpha3, tinyCountries } from "@/lib/geo";
+import { BASE } from "@/lib/countries";
 import {
   ComposableMap,
   Geographies,
@@ -13,7 +14,7 @@ import {
 } from "react-simple-maps";
 
 // world-atlas@2 countries-50m, served locally so the game works offline
-const geoUrl = "/countries-50m.json";
+const geoUrl = `${BASE}/countries-50m.json`;
 
 // Kosovo, Somaliland and N. Cyprus have no numeric id in the atlas, so they are matched by name.
 // Somaliland and N. Cyprus stay unplayable; they read as part of Somalia and Cyprus.
