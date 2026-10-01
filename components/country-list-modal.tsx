@@ -178,10 +178,8 @@ export function CountryListModal({
                       : "bg-muted/30 border-transparent"
                     }`}
                 >
-                  {/* Real flag from flagcdn.com */}
-                  <img
-                    src={`https://flagcdn.com/w40/${country.code2}.png`}
-                    srcSet={`https://flagcdn.com/w80/${country.code2}.png 2x`}
+                                    <img
+                    src={`/flags/${country.code2}.png`}
                     alt={`${country.name} bayrağı`}
                     width={28}
                     height={20}

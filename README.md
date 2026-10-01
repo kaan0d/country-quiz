@@ -20,7 +20,6 @@ pnpm build && pnpm start
 
 ## Limits
 
-- Map shapes load from jsDelivr (`world-atlas` 50m) and flags from flagcdn.com, so the game needs internet access.
 - Progress is not saved; a reload starts a new game.
 
 ## Layout

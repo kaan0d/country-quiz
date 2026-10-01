@@ -11,7 +11,8 @@ import {
   Marker,
 } from "react-simple-maps";
 
-const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
+// world-atlas@2 countries-50m, served locally so the game works offline
+const geoUrl = "/countries-50m.json";
 
 // Some regions share the same geo.id (e.g., -99 for Kosovo, Somaliland, N. Cyprus).
 // We use geo.properties.name to create unique IDs for them.

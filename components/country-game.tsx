@@ -309,8 +309,7 @@ export function CountryGame() {
         <div className="flex items-center gap-3">
           <img
             key={currentCountry.code}
-            src={`https://flagcdn.com/w80/${currentCountry.code2}.png`}
-            srcSet={`https://flagcdn.com/w160/${currentCountry.code2}.png 2x`}
+            src={`/flags/${currentCountry.code2}.png`}
             alt={`${currentCountry.name} bayrağı`}
             width={64}
             height={43}
