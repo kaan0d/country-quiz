@@ -86,6 +86,12 @@ export function SettingsModal({
           </div>
         </div>
         <Toggle
+          label={t.timed}
+          description={t.timedInfo}
+          value={settings.timed}
+          onChange={(v) => onChange({ timed: v })}
+        />
+        <Toggle
           label={t.smallIslands}
           description={t.smallIslandsInfo}
           value={settings.includeSmallIslands}

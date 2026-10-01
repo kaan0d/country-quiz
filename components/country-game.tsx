@@ -21,13 +21,14 @@ export type Mode = "name" | "flag" | "capital" | "reverse";
 export type Settings = {
   lang: Lang;
   mode: Mode;
+  timed: boolean;
   region: Continent | "all";
   includeSmallIslands: boolean;
   showWrongAnswer: boolean;
 };
-const defaultSettings: Settings = { lang: "tr", mode: "name", region: "all", includeSmallIslands: true, showWrongAnswer: false };
+const defaultSettings: Settings = { lang: "tr", mode: "name", timed: false, region: "all", includeSmallIslands: true, showWrongAnswer: false };
 // Changing one of these starts a new game
-const GAME_SETTINGS: (keyof Settings)[] = ["mode", "region", "includeSmallIslands"];
+const GAME_SETTINGS: (keyof Settings)[] = ["mode", "timed", "region", "includeSmallIslands"];
 
 // Answer plus distractors, from the same continent when there are enough
 function pickOptions(answer: string, pool: string[], n = 4) {
@@ -44,8 +45,10 @@ const playableCodes = (s: Settings) =>
     .filter((c) => s.mode !== "capital" || c.capital)
     .map((c) => c.code);
 
+const TIME_LIMIT = 60_000;
+
 function startGame(s: Settings) {
-  return newGame(shuffleArray(playableCodes(s)), Date.now());
+  return newGame(shuffleArray(playableCodes(s)), Date.now(), s.timed ? TIME_LIMIT : null);
 }
 
 export function CountryGame() {
@@ -78,9 +81,24 @@ export function CountryGame() {
   // Short pause on a correct or revealed answer, then the next country
   useEffect(() => {
     if (game.phase !== "correct" && game.phase !== "revealed") return;
-    const id = setTimeout(() => dispatch({ type: "next", now: Date.now() }), game.phase === "correct" ? 1000 : 1800);
+    const pause = game.phase === "correct" ? (game.timeLimit ? 400 : 1000) : 1800;
+    const id = setTimeout(() => dispatch({ type: "next", now: Date.now() }), pause);
     return () => clearTimeout(id);
-  }, [game.phase]);
+  }, [game.phase, game.timeLimit]);
+
+  // Countdown for a timed run
+  const [now, setNow] = useState(0);
+  const deadline = game.timeLimit && game.phase !== "over" ? game.startedAt + game.timeLimit : null;
+  useEffect(() => {
+    if (!deadline) return;
+    const tick = () => {
+      setNow(Date.now());
+      if (Date.now() >= deadline) dispatch({ type: "timeUp", now: deadline });
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [deadline]);
 
   const resetGame = (s = settings) => dispatch({ type: "load", state: startGame(s) });
 
@@ -199,7 +217,11 @@ export function CountryGame() {
           </div>
         )}
 
-        {game.queue.length > 1 && (
+        {deadline ? (
+          <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-yellow-500/40 text-yellow-400 px-2.5 py-1 rounded-md text-sm font-semibold tabular-nums z-10 pointer-events-none">
+            {Math.max(0, Math.ceil((deadline - now) / 1000))} s
+          </div>
+        ) : game.queue.length > 1 && (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
             {t.remaining}: {game.queue.length - 1}
           </div>
@@ -236,8 +258,8 @@ export function CountryGame() {
           <div className="absolute inset-0 bg-background/90 flex items-center justify-center z-20 px-4">
             <div className="bg-card p-6 sm:p-8 rounded-xl border border-border text-center w-full max-w-sm shadow-2xl">
               <Trophy className="w-14 h-14 text-yellow-400 mx-auto mb-3" />
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">{t.congrats}</h2>
-              <p className="text-muted-foreground text-sm mb-5">{t.allDone}</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">{game.timeLimit ? t.timeUp : t.congrats}</h2>
+              <p className="text-muted-foreground text-sm mb-5">{game.timeLimit ? t.foundInTime(game.score) : t.allDone}</p>
               <div className="flex justify-center gap-6 mb-6">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-400">{game.score}</p>
