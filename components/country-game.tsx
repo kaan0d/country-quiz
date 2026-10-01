@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useReducer } from "react";
 import { WorldMap, type HintCircle } from "./world-map";
-import { countries, getFilteredCountries, shuffleArray } from "@/lib/countries";
-import { buildHintCircle, countryCenters } from "@/lib/geo";
+import { countries, shuffleArray, type Continent } from "@/lib/countries";
+import { buildHintCircle, continentBounds, countryCenters } from "@/lib/geo";
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
 import { countryName, strings, type Lang } from "@/lib/i18n";
@@ -16,11 +16,23 @@ const byCode = new Map(countries.map((c) => [c.code, c]));
 const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
 
-type Settings = { lang: Lang; includeSmallIslands: boolean; showWrongAnswer: boolean };
-const defaultSettings: Settings = { lang: "tr", includeSmallIslands: true, showWrongAnswer: false };
+export type Settings = {
+  lang: Lang;
+  region: Continent | "all";
+  includeSmallIslands: boolean;
+  showWrongAnswer: boolean;
+};
+const defaultSettings: Settings = { lang: "tr", region: "all", includeSmallIslands: true, showWrongAnswer: false };
+// Changing one of these starts a new game
+const GAME_SETTINGS: (keyof Settings)[] = ["region", "includeSmallIslands"];
 
-function startGame(includeSmallIslands: boolean) {
-  return newGame(shuffleArray(getFilteredCountries(includeSmallIslands)).map((c) => c.code), Date.now());
+const playableCodes = (s: Settings) =>
+  countries
+    .filter((c) => (s.includeSmallIslands || !c.isSmallIsland) && (s.region === "all" || c.continent === s.region))
+    .map((c) => c.code);
+
+function startGame(s: Settings) {
+  return newGame(shuffleArray(playableCodes(s)), Date.now());
 }
 
 export function CountryGame() {
@@ -29,7 +41,7 @@ export function CountryGame() {
   const [showCountryList, setShowCountryList] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
-  const { lang, includeSmallIslands, showWrongAnswer } = settings;
+  const { lang, showWrongAnswer } = settings;
   const t = strings[lang];
 
   useEffect(() => {
@@ -42,7 +54,7 @@ export function CountryGame() {
     const savedGame = load<GameState | null>(GAME_KEY, null);
     setSettings(saved);
     const resumable = savedGame?.phase !== "over" && savedGame?.queue.every((code) => byCode.has(code));
-    dispatch({ type: "load", state: resumable ? savedGame! : startGame(saved.includeSmallIslands) });
+    dispatch({ type: "load", state: resumable ? savedGame! : startGame(saved) });
     setReady(true);
   }, []);
 
@@ -57,8 +69,7 @@ export function CountryGame() {
     return () => clearTimeout(id);
   }, [game.phase]);
 
-  const resetGame = (withSmallIslands = includeSmallIslands) =>
-    dispatch({ type: "load", state: startGame(withSmallIslands) });
+  const resetGame = (s = settings) => dispatch({ type: "load", state: startGame(s) });
 
   const updateSettings = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
@@ -69,8 +80,8 @@ export function CountryGame() {
 
   const current = byCode.get(game.queue[0]);
   const playable = useMemo(
-    () => new Set(getFilteredCountries(includeSmallIslands).map((c) => c.code)),
-    [includeSmallIslands]
+    () => new Set(playableCodes(settings)),
+    [settings]
   );
   const hintCircle = useMemo<HintCircle | null>(
     () => (current && game.hintUsed ? buildHintCircle(current.continent, countryCenters[current.code] ?? [0, 0]) : null),
@@ -149,6 +160,7 @@ export function CountryGame() {
         <WorldMap
           onCountryClick={(code) => dispatch({ type: "answer", code })}
           playable={playable}
+          focus={settings.region === "all" ? null : continentBounds[settings.region]}
           done={game.done}
           wrong={game.wrong}
           correct={game.phase === "correct" ? game.queue[0] : null}
@@ -268,12 +280,10 @@ export function CountryGame() {
       {showSettings && (
         <SettingsModal
           t={t}
-          lang={lang}
-          includeSmallIslands={includeSmallIslands}
-          showWrongAnswer={showWrongAnswer}
+          settings={settings}
           onChange={(patch) => {
             const next = updateSettings(patch);
-            if (patch.includeSmallIslands !== undefined) resetGame(next.includeSmallIslands);
+            if (GAME_SETTINGS.some((k) => k in patch)) resetGame(next);
           }}
           onNewGame={() => {
             resetGame();

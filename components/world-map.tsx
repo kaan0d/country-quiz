@@ -27,6 +27,7 @@ export type HintCircle = { center: [number, number]; radius: number };
 interface WorldMapProps {
   onCountryClick: (code: string) => void;
   playable: Set<string>; // countries in this game; the rest are dimmed and not clickable
+  focus: [number, number, number, number] | null; // [minLng, minLat, maxLng, maxLat] to zoom to, null for the world
   done: string[];
   wrong: string[];
   correct: string | null;
@@ -38,6 +39,10 @@ interface WorldMapProps {
 const MAP_SCALE = 160;
 // Equirectangular: one degree spans the same number of SVG units everywhere
 const UNITS_PER_DEGREE = (MAP_SCALE * Math.PI) / 180;
+
+// Default ComposableMap viewBox is 800 x 600
+const VISIBLE_LNG = 800 / UNITS_PER_DEGREE;
+const VISIBLE_LAT = 600 / UNITS_PER_DEGREE;
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 48;
@@ -71,6 +76,7 @@ const FILL = {
 function WorldMapComponent({
   onCountryClick,
   playable,
+  focus,
   done,
   wrong,
   correct,
@@ -107,6 +113,18 @@ function WorldMapComponent({
     if (done.includes(a3)) return "done";
     return "open";
   };
+
+  // Fit the focus box into the visible map; keyed by value since the array is rebuilt each render
+  const focusKey = focus?.join();
+  useEffect(() => {
+    if (!focus) {
+      setPosition({ coordinates: [0, 10], zoom: 1 });
+      return;
+    }
+    const [minLng, minLat, maxLng, maxLat] = focus;
+    const zoom = clamp(Math.min(VISIBLE_LNG / (maxLng - minLng), VISIBLE_LAT / (maxLat - minLat)) * 0.9, MIN_ZOOM, MAX_ZOOM);
+    setPosition({ coordinates: [(minLng + maxLng) / 2, (minLat + maxLat) / 2], zoom });
+  }, [focusKey]);
 
   const positionRef = useRef(position);
   useEffect(() => {

@@ -225,9 +225,3 @@ export function shuffleArray<T>(arr: T[]): T[] {
   }
   return result;
 }
-
-// Get filtered countries based on settings
-export function getFilteredCountries(includeSmallIslands: boolean): Country[] {
-  if (includeSmallIslands) return countries;
-  return countries.filter(c => !c.isSmallIsland);
-}

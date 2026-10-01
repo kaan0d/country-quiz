@@ -2,7 +2,9 @@
 
 import { RotateCcw } from "lucide-react";
 import { Chip, Modal } from "./modal";
-import type { Lang, Strings } from "@/lib/i18n";
+import type { Strings } from "@/lib/i18n";
+import { CONTINENTS } from "@/lib/countries";
+import type { Settings } from "./country-game";
 
 function Toggle({
   label,
@@ -38,18 +40,14 @@ function Toggle({
 
 export function SettingsModal({
   t,
-  lang,
-  includeSmallIslands,
-  showWrongAnswer,
+  settings,
   onChange,
   onNewGame,
   onClose,
 }: {
   t: Strings;
-  lang: Lang;
-  includeSmallIslands: boolean;
-  showWrongAnswer: boolean;
-  onChange: (patch: { lang?: Lang; includeSmallIslands?: boolean; showWrongAnswer?: boolean }) => void;
+  settings: Settings;
+  onChange: (patch: Partial<Settings>) => void;
   onNewGame: () => void;
   onClose: () => void;
 }) {
@@ -60,8 +58,19 @@ export function SettingsModal({
           <p className="text-sm font-medium text-foreground">{t.language}</p>
           <div className="flex gap-1.5">
             {(["tr", "en"] as const).map((l) => (
-              <Chip key={l} active={lang === l} onClick={() => onChange({ lang: l })}>
+              <Chip key={l} active={settings.lang === l} onClick={() => onChange({ lang: l })}>
                 {l === "tr" ? "Türkçe" : "English"}
+              </Chip>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">{t.region}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-2">{t.regionInfo}</p>
+          <div className="flex gap-1.5 flex-wrap">
+            {(["all", ...CONTINENTS.filter((c) => c !== "antarctica")] as const).map((r) => (
+              <Chip key={r} active={settings.region === r} onClick={() => onChange({ region: r })}>
+                {r === "all" ? t.world : t.continents[r]}
               </Chip>
             ))}
           </div>
@@ -69,13 +78,13 @@ export function SettingsModal({
         <Toggle
           label={t.smallIslands}
           description={t.smallIslandsInfo}
-          value={includeSmallIslands}
+          value={settings.includeSmallIslands}
           onChange={(v) => onChange({ includeSmallIslands: v })}
         />
         <Toggle
           label={t.showWrong}
           description={t.showWrongInfo}
-          value={showWrongAnswer}
+          value={settings.showWrongAnswer}
           onChange={(v) => onChange({ showWrongAnswer: v })}
         />
         <button
