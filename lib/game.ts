@@ -16,6 +16,7 @@ export interface GameState {
   endedAt: number | null;
   timeLimit: number | null; // ms, null for a full run
   practice: boolean; // a round of the most missed countries
+  daily?: string | null; // date of a daily challenge; missing in games saved before it existed
 }
 
 export type Action =
@@ -32,7 +33,7 @@ export const MAX_MISSES = 3;
 export function newGame(
   queue: string[],
   now: number,
-  { timeLimit = null, practice = false }: { timeLimit?: number | null; practice?: boolean } = {}
+  { timeLimit = null, practice = false, daily = null }: { timeLimit?: number | null; practice?: boolean; daily?: string | null } = {}
 ): GameState {
   return {
     queue,
@@ -48,6 +49,7 @@ export function newGame(
     endedAt: queue.length ? null : now,
     timeLimit,
     practice,
+    daily,
   };
 }
 

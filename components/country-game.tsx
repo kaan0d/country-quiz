@@ -13,6 +13,7 @@ import { SettingsModal } from "./settings-modal";
 import { GameSummary } from "./game-summary";
 import { answerFeedback } from "@/lib/feedback";
 import { emptyStats, gameScore, hardest, recordGame } from "@/lib/stats";
+import { dailyCodes, shareText, today } from "@/lib/daily";
 
 const byCode = new Map(countries.map((c) => [c.code, c]));
 const allCodes = new Set(byCode.keys());
@@ -120,7 +121,7 @@ export function CountryGame() {
     recorded.current = g.startedAt;
     const key = bestKey(settings);
     const next = recordGame(stats, g, key);
-    setNewRecord(g.phase === "over" && !g.practice && stats.best[key] !== undefined && gameScore(g) > stats.best[key]);
+    setNewRecord(g.phase === "over" && !g.practice && !g.daily && stats.best[key] !== undefined && gameScore(g) > stats.best[key]);
     setStats(next);
     save(STATS_KEY, next);
   };
@@ -149,15 +150,23 @@ export function CountryGame() {
   };
 
   const current = byCode.get(game.queue[0]);
+  // The daily challenge is the same for everyone, so it ignores the region and small island settings
+  const region = game.daily ? "all" : settings.region;
   const playable = useMemo(
-    () => new Set(playableCodes(settings)),
+    () => new Set(playableCodes(game.daily ? { ...settings, region, includeSmallIslands: false } : settings)),
     // Only the game settings matter; a language change must not reshuffle the options
-    [settings.mode, settings.region, settings.includeSmallIslands]
+    [settings.mode, region, settings.includeSmallIslands, game.daily]
   );
   const practiceCodes = hardest(stats, playable);
   const startPractice = () => {
     record(game);
     dispatch({ type: "load", state: newGame(shuffleArray(practiceCodes), Date.now(), { practice: true }) });
+  };
+  // Daily challenge: the day's countries in a fixed order, in the current mode
+  const startDaily = () => {
+    record(game);
+    const date = today();
+    dispatch({ type: "load", state: newGame(dailyCodes(date), Date.now(), { daily: date }) });
   };
   const options = useMemo(
     () => (settings.mode === "reverse" && game.queue[0] ? pickOptions(game.queue[0], [...playable]) : []),
@@ -285,7 +294,7 @@ export function CountryGame() {
           <WorldMap
             onCountryClick={setPicked}
             playable={allCodes}
-            focus={settings.region === "all" ? null : continentBounds[settings.region]}
+            focus={region === "all" ? null : continentBounds[region]}
             done={[]}
             wrong={[]}
             correct={null}
@@ -297,7 +306,7 @@ export function CountryGame() {
         ) : <WorldMap
           onCountryClick={answer}
           playable={playable}
-          focus={settings.region === "all" ? null : continentBounds[settings.region]}
+          focus={region === "all" ? null : continentBounds[region]}
           done={game.done}
           wrong={game.wrong}
           correct={game.phase === "correct" ? game.queue[0] : null}
@@ -333,7 +342,7 @@ export function CountryGame() {
           </div>
         ) : game.queue.length > 1 && (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
-            {game.practice && `${t.practiceBadge} · `}{t.remaining}: {game.queue.length - 1}
+            {game.practice && `${t.practiceBadge} · `}{game.daily && `${t.daily} · `}{t.remaining}: {game.queue.length - 1}
           </div>
         )}
 
@@ -374,6 +383,7 @@ export function CountryGame() {
             practiceCount={practiceCodes.length}
             onPlayAgain={() => resetGame()}
             onPractice={startPractice}
+            share={game.daily ? shareText(game.daily, t.modes[mode], game.missed) : null}
           />
         )}
       </main>
@@ -467,6 +477,10 @@ export function CountryGame() {
           practiceCount={practiceCodes.length}
           onPractice={() => {
             startPractice();
+            setShowSettings(false);
+          }}
+          onDaily={() => {
+            startDaily();
             setShowSettings(false);
           }}
           onExplore={() => {

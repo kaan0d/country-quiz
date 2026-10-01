@@ -11,7 +11,7 @@ export const gameScore = (g: GameState) =>
   g.timeLimit ? g.score : g.attempts ? Math.round((g.score / g.attempts) * 100) : 0;
 
 // Adds a game's misses to the lifetime counts; a country found without a miss loses one.
-// Only a finished, non-practice game can set a best score.
+// Only a finished game that is not a practice round or daily challenge can set a best score.
 export function recordGame(stats: Stats, g: GameState, key: string): Stats {
   const misses = { ...stats.misses };
   for (const [code, n] of Object.entries(g.missed)) misses[code] = (misses[code] ?? 0) + n;
@@ -20,7 +20,7 @@ export function recordGame(stats: Stats, g: GameState, key: string): Stats {
     if (--misses[code] === 0) delete misses[code];
   }
   const best = { ...stats.best };
-  if (g.phase === "over" && !g.practice && g.attempts > 0) best[key] = Math.max(best[key] ?? 0, gameScore(g));
+  if (g.phase === "over" && !g.practice && !g.daily && g.attempts > 0) best[key] = Math.max(best[key] ?? 0, gameScore(g));
   return { misses, best };
 }
 

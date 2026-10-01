@@ -1,6 +1,7 @@
 "use client";
 
-import { Dumbbell, RotateCcw, Trophy } from "lucide-react";
+import { useState } from "react";
+import { Dumbbell, RotateCcw, Share2, Trophy } from "lucide-react";
 import type { Country } from "@/lib/countries";
 import type { GameState } from "@/lib/game";
 import { countryName, type Lang, type Strings } from "@/lib/i18n";
@@ -20,6 +21,7 @@ export function GameSummary({
   practiceCount,
   onPlayAgain,
   onPractice,
+  share,
 }: {
   t: Strings;
   lang: Lang;
@@ -30,13 +32,21 @@ export function GameSummary({
   practiceCount: number;
   onPlayAgain: () => void;
   onPractice: () => void;
+  share: string | null; // daily challenge result to copy
 }) {
+  const [copied, setCopied] = useState(false);
+  const copyShare = async () => {
+    try {
+      await navigator.clipboard.writeText(share!);
+      setCopied(true);
+    } catch {}
+  };
   const accuracy = game.attempts ? Math.round((game.score / game.attempts) * 100) : 0;
   const mostMissed = Object.entries(game.missed)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
-  const title = game.practice ? t.practiceDone : game.timeLimit ? t.timeUp : t.congrats;
-  const subtitle = game.practice ? t.practiceAllDone : game.timeLimit ? t.foundInTime(game.score) : t.allDone;
+  const title = game.daily ? t.dailyDone : game.practice ? t.practiceDone : game.timeLimit ? t.timeUp : t.congrats;
+  const subtitle = game.daily ? game.daily : game.practice ? t.practiceAllDone : game.timeLimit ? t.foundInTime(game.score) : t.allDone;
 
   const stats = [
     [game.score, t.correctCount, "text-green-400"],
@@ -61,7 +71,9 @@ export function GameSummary({
           ))}
         </div>
 
-        {!game.practice && best !== undefined && (
+        {share && <p className="text-lg tracking-wider mb-4">{share.split("\n")[1]}</p>}
+
+        {!game.practice && !game.daily && best !== undefined && (
           <p className="text-sm mb-4">
             {newRecord ? (
               <span className="font-semibold text-yellow-400">{t.newRecord}</span>
@@ -93,6 +105,15 @@ export function GameSummary({
         )}
 
         <div className="flex flex-col gap-2">
+          {share && (
+            <button
+              onClick={copyShare}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+            >
+              <Share2 className="w-4 h-4" />
+              {copied ? t.copied : t.shareResult}
+            </button>
+          )}
           <button
             onClick={onPlayAgain}
             className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"

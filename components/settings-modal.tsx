@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, Map as MapIcon, RotateCcw } from "lucide-react";
+import { CalendarDays, Dumbbell, Map as MapIcon, RotateCcw } from "lucide-react";
 import { Chip, Modal } from "./modal";
 import type { Strings } from "@/lib/i18n";
 import { CONTINENTS } from "@/lib/countries";
@@ -45,6 +45,7 @@ export function SettingsModal({
   onNewGame,
   practiceCount,
   onPractice,
+  onDaily,
   onExplore,
   onClose,
 }: {
@@ -54,6 +55,7 @@ export function SettingsModal({
   onNewGame: () => void;
   practiceCount: number;
   onPractice: () => void;
+  onDaily: () => void;
   onExplore: () => void;
   onClose: () => void;
 }) {
@@ -132,6 +134,13 @@ export function SettingsModal({
             {t.practice(practiceCount)}
           </button>
         )}
+        <button
+          onClick={onDaily}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 -mt-3 rounded-lg bg-muted text-foreground font-semibold text-sm hover:bg-muted/70 transition-colors"
+        >
+          <CalendarDays className="w-4 h-4" />
+          {t.dailyStart}
+        </button>
         <button
           onClick={onExplore}
           className="flex items-center justify-center gap-2 px-5 py-2.5 -mt-3 rounded-lg bg-muted text-foreground font-semibold text-sm hover:bg-muted/70 transition-colors"
