@@ -19,7 +19,6 @@ const NAME_TO_CUSTOM_ID: Record<string, string> = {
   "Kosovo": "CUSTOM_XKX",
   "Somaliland": "CUSTOM_SOMALILAND",
   "N. Cyprus": "CUSTOM_NCYPRUS",
-  "French Guiana": "CUSTOM_GUF",
 };
 
 // Map custom IDs to alpha-3 codes
@@ -27,7 +26,6 @@ const CUSTOM_ID_TO_ALPHA3: Record<string, string | null> = {
   "CUSTOM_XKX": "XKX",           // Kosovo - playable
   "CUSTOM_SOMALILAND": null,     // Somaliland - not playable (part of Somalia visually)
   "CUSTOM_NCYPRUS": null,        // N. Cyprus - not playable (part of Cyprus visually)
-  "CUSTOM_GUF": "GUF",           // French Guiana - playable
 };
 
 // Get the effective ID for a geography (uses name-based custom ID if applicable)

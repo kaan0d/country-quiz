@@ -3,11 +3,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { WorldMap } from "./world-map";
 import { countries, getFilteredCountries, shuffleArray, type Country, type Continent } from "@/lib/countries";
+import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X } from "lucide-react";
+import { CountryListModal } from "./country-list-modal";
 
 // Get all small island country codes
 const smallIslandCodes = countries.filter(c => c.isSmallIsland).map(c => c.code);
-import { Trophy, RotateCcw, Target, Check, Globe, Lightbulb, SkipForward, List, X } from "lucide-react";
-import { CountryListModal } from "./country-list-modal";
 
 // ISO numeric → alpha-3
 const numericToAlpha3: Record<string, string> = {
@@ -47,14 +47,13 @@ const numericToAlpha3: Record<string, string> = {
   "729": "SDN", "740": "SUR", "752": "SWE", "756": "CHE", "760": "SYR",
   "158": "TWN", "762": "TJK", "834": "TZA", "764": "THA", "626": "TLS",
   "768": "TGO", "776": "TON", "780": "TTO", "788": "TUN", "792": "TUR",
-  "795": "TKM", "798": "TUV", "800": "UGA", "804": "UKR", "784": "ARE",
+  "795": "TKM", "800": "UGA", "804": "UKR", "784": "ARE",
   "826": "GBR", "840": "USA", "858": "URY", "860": "UZB", "548": "VUT",
   "336": "VAT", "862": "VEN", "704": "VNM", "887": "YEM", "894": "ZMB",
   "716": "ZWE", "732": "ESH", "304": "GRL", "630": "PRI",
   "238": "FLK", "010": "ATA", "540": "NCL",
   // Custom IDs for regions that share geo.id or need special mapping (handled in world-map.tsx)
   "CUSTOM_XKX": "XKX", // Kosovo
-  "CUSTOM_GUF": "GUF", // French Guiana
 };
 
 const continentBounds: Record<Continent, [number, number, number, number]> = {
@@ -134,11 +133,11 @@ const countryCenters: Partial<Record<string, [number, number]>> = {
   SDN: [30, 15], SUR: [-56, 4], SWE: [18, 62], CHE: [8.2, 46.8], SYR: [38, 35],
   TWN: [121, 24], TJK: [71, 39], TZA: [34.9, -6.4], THA: [101, 15], TLS: [125.7, -8.9],
   TGO: [1.2, 8.6], TON: [-175, -20], TTO: [-61, 10.7], TUN: [9.5, 34], TUR: [35, 39],
-  TKM: [59, 40], TUV: [178, -7.5], UGA: [32.4, 1.3], UKR: [32, 49], ARE: [54, 24],
+  TKM: [59, 40], UGA: [32.4, 1.3], UKR: [32, 49], ARE: [54, 24],
   GBR: [-2, 54], USA: [-98, 39], URY: [-56, -33], UZB: [63.8, 41.4], VUT: [167.7, -16],
   VAT: [12.5, 41.9], VEN: [-66.6, 7.1], VNM: [108, 14], YEM: [47.8, 15.6], ZMB: [27.8, -13.1],
   ZWE: [30, -20], ESH: [-13.2, 24.5], GRL: [-42, 72], PRI: [-66.5, 18.2],
-  GUF: [-53, 4], FLK: [-59, -52], ATA: [0, -80], NCL: [165.6, -21.3],
+  FLK: [-59, -52], ATA: [0, -80], NCL: [165.6, -21.3],
 };
 
 export function CountryGame() {
