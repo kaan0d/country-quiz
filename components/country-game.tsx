@@ -206,7 +206,7 @@ export function CountryGame() {
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 bg-card border-b border-border">
-        {current && (
+        {current && !gameComplete && (
           <div className="flex items-center gap-3">
             {(mode === "name" || mode === "flag") && (
               <img
@@ -270,13 +270,13 @@ export function CountryGame() {
           locked={!playing || mode === "reverse"}
         />
 
-        {game.hintUsed && current && (
+        {game.hintUsed && current && !gameComplete && (
           <div className="absolute top-2 left-2 bg-yellow-500 text-yellow-950 px-2.5 py-1 rounded-md font-semibold text-xs z-10 shadow-lg pointer-events-none">
             {t.continent}: {t.continents[current.continent]}
           </div>
         )}
 
-        {deadline ? (
+        {gameComplete ? null : deadline ? (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-yellow-500/40 text-yellow-400 px-2.5 py-1 rounded-md text-sm font-semibold tabular-nums z-10 pointer-events-none">
             {Math.max(0, Math.ceil((deadline - now) / 1000))} s
           </div>
