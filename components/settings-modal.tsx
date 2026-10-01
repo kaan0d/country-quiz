@@ -67,7 +67,7 @@ export function SettingsModal({
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <p className="text-sm font-medium text-foreground">{t.mode}</p>
           <div className="flex gap-1.5 flex-wrap">
-            {(["name", "flag", "capital"] as const).map((m) => (
+            {(["name", "flag", "capital", "reverse"] as const).map((m) => (
               <Chip key={m} active={settings.mode === m} onClick={() => onChange({ mode: m })}>
                 {t.modes[m]}
               </Chip>

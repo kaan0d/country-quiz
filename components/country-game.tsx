@@ -16,7 +16,7 @@ const byCode = new Map(countries.map((c) => [c.code, c]));
 const SETTINGS_KEY = "countryQuiz.settings";
 const GAME_KEY = "countryQuiz.game";
 
-export type Mode = "name" | "flag" | "capital";
+export type Mode = "name" | "flag" | "capital" | "reverse";
 
 export type Settings = {
   lang: Lang;
@@ -28,6 +28,14 @@ export type Settings = {
 const defaultSettings: Settings = { lang: "tr", mode: "name", region: "all", includeSmallIslands: true, showWrongAnswer: false };
 // Changing one of these starts a new game
 const GAME_SETTINGS: (keyof Settings)[] = ["mode", "region", "includeSmallIslands"];
+
+// Answer plus distractors, from the same continent when there are enough
+function pickOptions(answer: string, pool: string[], n = 4) {
+  const continent = byCode.get(answer)?.continent;
+  const others = shuffleArray(pool.filter((c) => c !== answer));
+  others.sort((a, b) => Number(byCode.get(b)?.continent === continent) - Number(byCode.get(a)?.continent === continent));
+  return shuffleArray([answer, ...others.slice(0, n - 1)]);
+}
 
 const playableCodes = (s: Settings) =>
   countries
@@ -86,7 +94,12 @@ export function CountryGame() {
   const current = byCode.get(game.queue[0]);
   const playable = useMemo(
     () => new Set(playableCodes(settings)),
-    [settings]
+    // Only the game settings matter; a language change must not reshuffle the options
+    [settings.mode, settings.region, settings.includeSmallIslands]
+  );
+  const options = useMemo(
+    () => (settings.mode === "reverse" && game.queue[0] ? pickOptions(game.queue[0], [...playable]) : []),
+    [settings.mode, game.queue[0], playable]
   );
   const hintCircle = useMemo<HintCircle | null>(
     () => (current && game.hintUsed ? buildHintCircle(current.continent, countryCenters[current.code] ?? [0, 0]) : null),
@@ -118,7 +131,7 @@ export function CountryGame() {
       <header className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 bg-card border-b border-border">
         {current && (
           <div className="flex items-center gap-3">
-            {mode !== "capital" && (
+            {(mode === "name" || mode === "flag") && (
               <img
                 key={current.code}
                 src={`/flags/${current.code2}.png`}
@@ -131,10 +144,10 @@ export function CountryGame() {
             )}
             <div className="min-w-0">
               <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground text-balance leading-tight">
-                {mode === "name" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : t.flagQuestion}
+                {mode === "name" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : mode === "flag" ? t.flagQuestion : t.reverseQuestion}
               </h1>
               <p className="text-xs text-muted-foreground hidden sm:block">
-                {mode === "capital" ? t.findCapital : t.findOnMap}
+                {mode === "capital" ? t.findCapital : mode === "reverse" ? t.reverseInfo : t.findOnMap}
               </p>
             </div>
           </div>
@@ -175,9 +188,9 @@ export function CountryGame() {
           done={game.done}
           wrong={game.wrong}
           correct={game.phase === "correct" ? game.queue[0] : null}
-          target={game.phase === "revealed" ? game.queue[0] : null}
+          target={game.phase === "revealed" || mode === "reverse" ? game.queue[0] : null}
           hintCircle={playing ? hintCircle : null}
-          locked={!playing}
+          locked={!playing || mode === "reverse"}
         />
 
         {game.hintUsed && current && (
@@ -189,6 +202,32 @@ export function CountryGame() {
         {game.queue.length > 1 && (
           <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
             {t.remaining}: {game.queue.length - 1}
+          </div>
+        )}
+
+        {mode === "reverse" && !gameComplete && (
+          <div className="absolute bottom-2 inset-x-2 z-10 grid grid-cols-2 gap-1.5 max-w-xl mx-auto">
+            {options.map((code, i) => {
+              const c = byCode.get(code)!;
+              const isAnswer = code === game.queue[0];
+              const color =
+                !playing && isAnswer
+                  ? game.phase === "correct" ? "bg-green-600 border-green-400 text-white" : "bg-yellow-500 border-yellow-300 text-yellow-950"
+                  : game.wrong.includes(code)
+                    ? "bg-red-950/80 border-red-800 text-red-300 line-through"
+                    : "bg-card/90 border-border text-foreground hover:bg-muted";
+              return (
+                <button
+                  key={code}
+                  onClick={() => dispatch({ type: "answer", code })}
+                  disabled={!playing || game.wrong.includes(code)}
+                  className={`px-3 py-2.5 rounded-lg border backdrop-blur text-sm font-medium text-left truncate transition-colors ${color}`}
+                >
+                  <span className="text-muted-foreground mr-1.5 tabular-nums">{i + 1}</span>
+                  {countryName(c, lang)}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -254,7 +293,7 @@ export function CountryGame() {
 
           <button
             onClick={() => dispatch({ type: "hint" })}
-            disabled={!playing || game.hintUsed}
+            disabled={!playing || game.hintUsed || mode === "reverse"}
             aria-label={t.hint}
             title={t.hintCost}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
