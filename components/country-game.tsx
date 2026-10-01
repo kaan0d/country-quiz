@@ -157,6 +157,24 @@ export function CountryGame() {
     [current, game.hintUsed]
   );
 
+  // Keyboard: H hint, S skip, N new game, 1-4 pick an option in reverse mode
+  const modalOpen = showSettings || showCountryList;
+  useEffect(() => {
+    if (!ready || modalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement) return;
+      const key = e.key.toLowerCase();
+      if (key === "h" && settings.mode !== "reverse") dispatch({ type: "hint" });
+      else if (key === "s") dispatch({ type: "skip" });
+      else if (key === "n") resetGame();
+      else if (options[Number(key) - 1]) dispatch({ type: "answer", code: options[Number(key) - 1] });
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   if (!ready) {
     return (
       <div className="flex items-center justify-center h-svh bg-background">
@@ -332,7 +350,8 @@ export function CountryGame() {
             onClick={() => dispatch({ type: "hint" })}
             disabled={!playing || game.hintUsed || mode === "reverse"}
             aria-label={t.hint}
-            title={t.hintCost}
+            title={`${t.hintCost} (H)`}
+            aria-keyshortcuts="H"
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <Lightbulb className="w-4 h-4 shrink-0" />
@@ -341,6 +360,8 @@ export function CountryGame() {
 
           <button
             onClick={() => dispatch({ type: "skip" })}
+            title={`${t.skip} (S)`}
+            aria-keyshortcuts="S"
             disabled={!playing || game.queue.length < 2}
             aria-label={t.skip}
             className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"

@@ -113,6 +113,7 @@ export function SettingsModal({
         >
           <RotateCcw className="w-4 h-4" />
           {t.newGame}
+          <kbd className="ml-1 text-xs opacity-60">N</kbd>
         </button>
         {practiceCount > 0 && (
           <button
@@ -123,6 +124,7 @@ export function SettingsModal({
             {t.practice(practiceCount)}
           </button>
         )}
+        <p className="text-xs text-muted-foreground text-center">{t.shortcuts}</p>
       </div>
     </Modal>
   );

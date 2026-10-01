@@ -57,6 +57,7 @@ const tr = {
   showWrong: "Yanlış Cevapta Ülke Adını Göster",
   showWrongInfo: "Yanlış tıklamada tıklanan ülkenin adı ekranda görünsün",
   newGame: "Yeni Oyun",
+  shortcuts: "Kısayollar: H ipucu · S pas · N yeni oyun · 1-4 seçenek · Esc kapat",
   timed: "60 Saniye Modu",
   timedInfo: "Süre bitene kadar olabildiğince çok ülke bul (yeni oyun başlar)",
   continents: {
@@ -126,6 +127,7 @@ const en: Strings = {
   showWrong: "Name the Wrong Country",
   showWrongInfo: "Show the name of the country you clicked by mistake",
   newGame: "New Game",
+  shortcuts: "Shortcuts: H hint · S skip · N new game · 1-4 option · Esc close",
   timed: "60 Second Run",
   timedInfo: "Find as many countries as you can before time runs out (starts a new game)",
   continents: {
