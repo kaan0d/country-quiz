@@ -7,7 +7,7 @@ import { buildHintCircle, continentBounds, countryCenters, offBy } from "@/lib/g
 import { newGame, reducer, MAX_MISSES, type GameState } from "@/lib/game";
 import { load, save } from "@/lib/storage";
 import { capitalName, countryName, strings, type Lang } from "@/lib/i18n";
-import { ArrowUp, Target, Check, Globe, Lightbulb, SkipForward, List, X, House } from "lucide-react";
+import { ArrowUp, Check, Compass, CornerDownLeft, Lightbulb, SkipForward, List, X, House } from "lucide-react";
 import { CountryListModal } from "./country-list-modal";
 import { MainMenu, type StartKind } from "./main-menu";
 import { GameSummary } from "./game-summary";
@@ -226,12 +226,13 @@ export function CountryGame() {
     setMenu(true);
   }
 
+
   if (!ready) {
     return (
-      <div className="flex items-center justify-center h-svh bg-background">
-        <div className="flex items-center gap-3 text-foreground">
-          <Globe className="w-7 h-7 animate-spin" />
-          <span className="text-lg">{t.loading}</span>
+      <div className="flex items-center justify-center h-svh bg-paper">
+        <div className="flex items-center gap-3">
+          <Compass className="w-7 h-7 text-seal animate-spin" />
+          <span className="font-display italic text-xl">{t.loading}</span>
         </div>
       </div>
     );
@@ -250,65 +251,74 @@ export function CountryGame() {
   const answerCenter = current && countryCenters[current.code];
   const marked = isMarked(mode);
   const off = !marked && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
-  const [flagW, flagH] = mode === "flag" ? [96, 64] : [64, 43];
+  const [flagW, flagH] = mode === "flag" ? [96, 64] : [60, 40];
+  const total = game.done.length + game.queue.length;
+  const secondsLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : 0;
+  const footerButton =
+    "plate flex flex-col items-center justify-center gap-0.5 w-14 sm:w-16 h-12 rounded-sm text-[11px] font-semibold";
 
   return (
-    <div className="flex flex-col bg-background overflow-hidden" style={{ height: "100svh", maxHeight: "100svh" }}>
+    <div className="flex flex-col bg-paper overflow-hidden" style={{ height: "100svh", maxHeight: "100svh" }}>
 
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="shrink-0 flex flex-col items-center gap-1 py-2 px-3 bg-card border-b border-border">
+      {/* ── Header: the question, set like an atlas plate title ── */}
+      <header className="shrink-0 px-3 sm:px-5 pt-3 pb-2 border-b border-ink">
         {exploring ? (
-          <div className="text-center">
-            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">{t.explore}</h1>
-            <p className="text-xs text-muted-foreground">{t.exploreInfo}</p>
+          <div className="animate-rise">
+            <p className="smallcaps text-ink-soft">{t.exploreInfo}</p>
+            <h1 className="font-display text-3xl sm:text-4xl leading-none">{t.explore}</h1>
           </div>
         ) : current && !gameComplete && (
-          <div className="flex items-center gap-3">
+          // Keyed by country so every new question sets in with its own entrance
+          <div key={current.code} className="flex items-center gap-3 sm:gap-4">
             {(mode === "name" || mode === "flag" || mode === "neighbors") && (
               <img
-                key={current.code}
                 src={flagUrl(current.code2)}
                 alt={mode === "flag" ? t.flagQuestion : t.flagAlt(countryName(current, lang))}
                 width={flagW}
                 height={flagH}
-                className="rounded shadow-md object-cover border border-white/10 shrink-0"
-                style={{ width: flagW, height: flagH }}
+                className="object-cover shrink-0 p-[3px] bg-paper border border-ink shadow-[3px_3px_0_var(--ink)] animate-stamp"
+                style={{ width: flagW + 8, height: flagH + 8 }}
               />
             )}
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-foreground text-balance leading-tight">
-                {mode === "name" || mode === "neighbors" ? countryName(current, lang) : mode === "capital" ? capitalName(current, lang) : mode === "flag" ? t.flagQuestion : t.reverseQuestion}
-              </h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">
+            <div className="min-w-0 flex-1">
+              <p className="smallcaps text-ink-soft truncate animate-rise" style={{ "--i": 1 } as React.CSSProperties}>
                 {mode === "capital" ? t.findCapital : mode === "reverse" ? t.reverseInfo : mode === "typed" ? t.typedInfo : mode === "neighbors" ? t.neighborsInfo : t.findOnMap}
               </p>
+              <h1 className="font-display text-2xl sm:text-4xl md:text-5xl leading-[1.02] tracking-tight text-balance animate-rise" style={{ "--i": 2 } as React.CSSProperties}>
+                {mode === "name" || mode === "neighbors" ? countryName(current, lang) : mode === "capital" ? <em>{capitalName(current, lang)}</em> : mode === "flag" ? t.flagQuestion : t.reverseQuestion}
+              </h1>
             </div>
+            <p className="hidden md:block smallcaps text-ink-soft text-right shrink-0">
+              {game.practice && <>{t.practiceBadge}<br /></>}
+              {game.daily && <>{t.daily}<br /></>}
+              {t.modes[mode]}
+            </p>
           </div>
         )}
 
-        {/* Feedback strip */}
-        {!exploring && <div className="h-5 flex items-center justify-center">
+        {/* Feedback line; keyed per event so it re-animates on every answer */}
+        {!exploring && <div className="h-6 flex items-center text-sm font-semibold">
           {game.phase === "correct" && (
-            <span className="flex items-center gap-1 text-green-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
-              <Check className="w-3.5 h-3.5" /> {t.correct}
-              {mode === "neighbors" ? lastPickCountry && ` ${countryName(lastPickCountry, lang)}` : mode !== "name" && current && ` ${countryName(current, lang)}`}
+            <span key={`c${game.score}`} className="flex items-center gap-1.5 text-verdigris animate-rise">
+              <Check className="w-4 h-4" /> {t.correct}
+              {mode === "neighbors" ? lastPickCountry && <em className="font-display font-normal text-base">{countryName(lastPickCountry, lang)}</em> : mode !== "name" && current && <em className="font-display font-normal text-base">{countryName(current, lang)}</em>}
             </span>
           )}
           {game.phase === "revealed" && (
-            <span className="text-yellow-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
+            <span className="bg-ochre px-1.5 animate-rise">
               {mode !== "name" && mode !== "neighbors" && current && `${countryName(current, lang)}: `}
               {t.revealed(MAX_MISSES)}
             </span>
           )}
           {playing && lastWrong && (
-            <span className="flex items-center gap-1 text-red-400 text-xs font-semibold animate-in fade-in zoom-in duration-200">
-              <X className="w-3.5 h-3.5" />
+            <span key={`w${game.attempts}`} className="flex items-center gap-1.5 text-seal animate-shake">
+              <X className="w-4 h-4" />
               {showWrongAnswer
-                ? <><span className="text-red-300">{countryName(lastWrong, lang)}</span><span className="text-red-400/70 ml-1">{t.tryAgain}</span></>
+                ? <><em className="font-display font-normal text-base">{countryName(lastWrong, lang)}</em><span className="opacity-70">{t.tryAgain}</span></>
                 : t.wrong
               }
               {off && (
-                <span className="flex items-center gap-0.5 text-muted-foreground font-normal ml-1 tabular-nums">
+                <span className="flex items-center gap-0.5 text-ink-soft font-mono font-normal text-xs ml-1 tabular-nums">
                   · {off.km.toLocaleString(lang)} km
                   <ArrowUp className="w-3.5 h-3.5" style={{ transform: `rotate(${off.deg}deg)` }} aria-label={t.direction} />
                 </span>
@@ -318,7 +328,7 @@ export function CountryGame() {
         </div>}
       </header>
 
-      {/* ── Map ────────────────────────────────────────────────── */}
+      {/* ── Map, inside a printed neatline ───────────────────────── */}
       <main className="min-h-0 flex-1 relative overflow-hidden">
         {exploring ? (
           <WorldMap
@@ -350,40 +360,61 @@ export function CountryGame() {
           locked={!playing || marked}
         />}
 
+        <div className="absolute inset-1.5 sm:inset-2.5 neatline ticks pointer-events-none z-[5]" />
+
+        {/* A wrong pick flashes the margins red, a correct one gets stamped */}
+        {!exploring && playing && lastWrong && (
+          <div
+            key={`f${game.attempts}`}
+            className="absolute inset-0 pointer-events-none z-[6]"
+            style={{ boxShadow: "inset 0 0 90px color-mix(in oklch, var(--seal) 55%, transparent)", animation: "ink-flash 0.7s ease-out both" }}
+          />
+        )}
+        {!exploring && game.phase === "correct" && (
+          <div key={`s${game.score}`} className="absolute inset-0 flex items-center justify-center pointer-events-none z-[6]" style={{ animation: "stamp-out 1s ease-in both" }}>
+            <span className="animate-stamp font-display italic text-4xl sm:text-6xl text-verdigris border-4 border-double border-verdigris px-6 py-1 bg-paper/70">
+              {t.correct}
+            </span>
+          </div>
+        )}
+
         {exploring && pickedCountry && (
-          <div className="absolute bottom-2 inset-x-2 z-10 max-w-sm mx-auto flex items-center gap-3 bg-card/90 backdrop-blur border border-border rounded-lg px-3 py-2.5">
-            <img src={flagUrl(pickedCountry.code2)} alt="" width={48} height={32} className="rounded-sm object-cover shrink-0" style={{ width: 48, height: 32 }} />
+          <div key={pickedCountry.code} className="absolute bottom-4 inset-x-4 z-10 max-w-sm mx-auto flex items-center gap-3 bg-paper border border-ink shadow-[4px_4px_0_var(--ink)] px-3 py-2.5 animate-rise">
+            <img src={flagUrl(pickedCountry.code2)} alt="" width={48} height={32} className="object-cover shrink-0 ring-1 ring-ink-faint" style={{ width: 48, height: 32 }} />
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-foreground truncate">{countryName(pickedCountry, lang)}</p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="font-display text-xl leading-tight truncate">{countryName(pickedCountry, lang)}</p>
+              <p className="smallcaps text-ink-soft truncate">
                 {[capitalName(pickedCountry, lang), t.continents[pickedCountry.continent]].filter(Boolean).join(" · ")}
               </p>
             </div>
-            <p className={`text-xs tabular-nums shrink-0 ${stats.misses[pickedCountry.code] ? "text-red-400" : "text-muted-foreground"}`}>
+            <p className={`font-mono text-xs tabular-nums shrink-0 ${stats.misses[pickedCountry.code] ? "text-seal" : "text-ink-soft"}`}>
               {t.lifetimeMisses(stats.misses[pickedCountry.code] ?? 0)}
             </p>
           </div>
         )}
 
         {!exploring && game.hintUsed && current && !gameComplete && (
-          <div className="absolute top-2 left-2 bg-yellow-500 text-yellow-950 px-2.5 py-1 rounded-md font-semibold text-xs z-10 shadow-lg pointer-events-none">
-            {t.continent}: {t.continents[current.continent]}
+          <div className="absolute top-4 left-4 z-10 pointer-events-none bg-paper border border-seal text-seal px-3 py-1 shadow-[3px_3px_0_var(--seal)] animate-stamp">
+            <span className="smallcaps">{t.continent}</span>{" "}
+            <em className="font-display text-base">{t.continents[current.continent]}</em>
           </div>
         )}
 
         {gameComplete || exploring ? null : deadline ? (
-          <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-yellow-500/40 text-yellow-400 px-2.5 py-1 rounded-md text-sm font-semibold tabular-nums z-10 pointer-events-none">
-            {Math.max(0, Math.ceil((deadline - now) / 1000))} s
+          <div className={`absolute top-4 right-4 z-10 pointer-events-none bg-paper border px-3 py-0.5 font-display text-3xl tabular-nums leading-tight transition-colors ${secondsLeft <= 10 ? "border-seal text-seal shadow-[3px_3px_0_var(--seal)]" : "border-ink shadow-[3px_3px_0_var(--ink)]"}`}>
+            <span key={secondsLeft <= 10 ? secondsLeft : 0} className={secondsLeft <= 10 ? "inline-block animate-stamp" : undefined}>{secondsLeft}</span>
+            <span className="smallcaps ml-1">s</span>
           </div>
         ) : game.queue.length > 1 && (
-          <div className="absolute top-2 right-2 bg-card/80 backdrop-blur border border-border text-muted-foreground px-2.5 py-1 rounded-md text-xs z-10 pointer-events-none">
-            {game.practice && `${t.practiceBadge} · `}{game.daily && `${t.daily} · `}{t.remaining}: {game.queue.length - 1}
+          <div className="absolute top-4 right-4 z-10 pointer-events-none bg-paper/90 border border-ink px-2.5 py-1 smallcaps">
+            {game.practice && `${t.practiceBadge} · `}{game.daily && `${t.daily} · `}{t.remaining}{" "}
+            <span className="font-display normal-case text-base tracking-normal">{game.queue.length - 1}</span>
           </div>
         )}
 
         {(mode === "typed" || mode === "neighbors") && !gameComplete && !exploring && current && (
           <form
-            className="absolute bottom-2 inset-x-2 z-10 max-w-sm mx-auto flex flex-col gap-1"
+            className="absolute bottom-4 inset-x-4 z-10 max-w-md mx-auto flex flex-col gap-1.5"
             onSubmit={(e) => {
               e.preventDefault();
               const answers = mode === "neighbors" ? (neighbors[current.code] ?? []).flatMap((n) => byCode.get(n) ?? []) : [current];
@@ -397,46 +428,52 @@ export function CountryGame() {
               }
             }}
           >
-            {typedNote && <p className="text-xs text-red-400 bg-card/90 rounded px-2 py-1 self-start">{typedNote}</p>}
-            <input
-              value={typed}
-              onChange={(e) => {
-                setTyped(e.target.value);
-                setTypedNote(null);
-              }}
-              disabled={!playing}
-              ref={(el) => { if (el && playing && !modalOpen) el.focus(); }}
-              placeholder={t.typedPlaceholder}
-              aria-label={t.typedPlaceholder}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="send"
-              className="w-full px-3 py-2.5 rounded-lg border border-border bg-card/90 backdrop-blur text-foreground text-base outline-none focus:border-yellow-500"
-            />
+            {typedNote && <p key={typedNote} className="self-start text-xs font-semibold text-paper bg-seal px-2 py-1 animate-shake">{typedNote}</p>}
+            <div className="flex items-center bg-paper border border-ink shadow-[4px_4px_0_var(--ink)] focus-within:shadow-[4px_4px_0_var(--seal)] focus-within:border-seal transition-all">
+              <input
+                value={typed}
+                onChange={(e) => {
+                  setTyped(e.target.value);
+                  setTypedNote(null);
+                }}
+                disabled={!playing}
+                ref={(el) => { if (el && playing && !modalOpen) el.focus(); }}
+                placeholder={t.typedPlaceholder}
+                aria-label={t.typedPlaceholder}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="send"
+                className="flex-1 min-w-0 px-4 py-3 bg-transparent font-display italic text-xl placeholder:text-ink-soft/50 outline-none"
+              />
+              <button type="submit" disabled={!playing} aria-label={t.typedPlaceholder} className="self-stretch px-4 border-l border-ink text-seal hover:bg-paper-deep disabled:opacity-40 transition-colors">
+                <CornerDownLeft className="w-5 h-5" />
+              </button>
+            </div>
           </form>
         )}
 
         {mode === "reverse" && !gameComplete && !exploring && (
-          <div className="absolute bottom-2 inset-x-2 z-10 grid grid-cols-2 gap-1.5 max-w-xl mx-auto">
+          <div key={game.queue[0]} className="absolute bottom-4 inset-x-4 z-10 grid grid-cols-2 gap-2.5 max-w-xl mx-auto">
             {options.map((code, i) => {
               const c = byCode.get(code)!;
               const isAnswer = code === game.queue[0];
               const color =
                 !playing && isAnswer
-                  ? game.phase === "correct" ? "bg-green-600 border-green-400 text-white" : "bg-yellow-500 border-yellow-300 text-yellow-950"
+                  ? game.phase === "correct" ? "!bg-verdigris text-paper" : "!bg-ochre"
                   : game.wrong.includes(code)
-                    ? "bg-red-950/80 border-red-800 text-red-300 line-through"
-                    : "bg-card/90 border-border text-foreground hover:bg-muted";
+                    ? "!bg-paper-deep text-seal line-through animate-shake"
+                    : "";
               return (
                 <button
                   key={code}
                   onClick={() => answer(code)}
                   disabled={!playing || game.wrong.includes(code)}
-                  className={`px-3 py-2.5 rounded-lg border backdrop-blur text-sm font-medium text-left truncate transition-colors ${color}`}
+                  className={`plate flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-left animate-rise ${color}`}
+                  style={{ "--i": i } as React.CSSProperties}
                 >
-                  <span className="text-muted-foreground mr-1.5 tabular-nums">{i + 1}</span>
-                  {countryName(c, lang)}
+                  <span className="shrink-0 w-6 h-6 rounded-full border border-current flex items-center justify-center font-mono text-xs">{i + 1}</span>
+                  <span className="font-display text-lg leading-tight truncate">{countryName(c, lang)}</span>
                 </button>
               );
             })}
@@ -460,37 +497,34 @@ export function CountryGame() {
         )}
       </main>
 
-      {/* ── Footer ─────────────────────────────────────────────── */}
-      <footer className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-card border-t border-border">
-        {/* Stats */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-1">
-            <Target className="w-3.5 h-3.5 text-yellow-400" />
-            <span className="text-foreground font-medium tabular-nums text-sm">
-              {game.done.length}/{game.done.length + game.queue.length}
-            </span>
+      {/* ── Footer: progress drawn as a map's scale bar ─────────── */}
+      <footer className="shrink-0 flex items-center justify-between gap-3 px-3 sm:px-5 py-2.5 border-t border-ink">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="smallcaps text-ink-soft tabular-nums">{game.done.length} / {total}</span>
+            <div className="w-20 sm:w-48 h-2.5 border border-ink bg-paper overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={game.done.length}>
+              <div
+                className="h-full transition-[width] duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+                style={{
+                  width: `${total ? (game.done.length / total) * 100 : 0}%`,
+                  backgroundImage: "repeating-linear-gradient(90deg, var(--ink) 0 12px, var(--seal) 12px 24px)",
+                }}
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Check className="w-3.5 h-3.5 text-green-400" />
-            <span className="text-foreground font-medium tabular-nums text-sm">{accuracy}%</span>
+          <div className="flex flex-col">
+            <span className="smallcaps text-ink-soft">{t.accuracy}</span>
+            <span key={accuracy} className="font-display text-xl leading-none tabular-nums animate-rise">{accuracy}%</span>
           </div>
         </div>
 
-        {/* Action buttons */}
         {exploring ? (
-          <button
-            onClick={closeExplore}
-            className="flex items-center justify-center gap-2 h-12 px-4 rounded-md text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all"
-          >
+          <button onClick={closeExplore} className="plate flex items-center justify-center gap-2 h-12 px-5 rounded-sm text-sm font-semibold !bg-seal text-paper">
             <House className="w-4 h-4" />
             {t.menu}
           </button>
-        ) : <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setShowCountryList(true)}
-            aria-label={t.allCountries}
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 transition-all"
-          >
+        ) : <div className="flex items-center gap-2">
+          <button onClick={() => setShowCountryList(true)} aria-label={t.allCountries} className={footerButton}>
             <List className="w-4 h-4 shrink-0" />
             <span>{t.countries}</span>
           </button>
@@ -501,7 +535,7 @@ export function CountryGame() {
             aria-label={t.hint}
             title={`${t.hintCost} (H)`}
             aria-keyshortcuts="H"
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className={`${footerButton} text-seal`}
           >
             <Lightbulb className="w-4 h-4 shrink-0" />
             <span>{t.hint}</span>
@@ -513,19 +547,13 @@ export function CountryGame() {
             aria-keyshortcuts="S"
             disabled={!playing || game.queue.length < 2}
             aria-label={t.skip}
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className={footerButton}
           >
             <SkipForward className="w-4 h-4 shrink-0" />
             <span>{t.skip}</span>
           </button>
 
-          <button
-            onClick={() => setMenu(true)}
-            aria-label={t.menu}
-            title={`${t.menu} (M)`}
-            aria-keyshortcuts="M"
-            className="flex flex-col items-center justify-center gap-0.5 w-14 h-12 rounded-md text-xs font-medium bg-slate-500/10 border border-slate-500/30 text-slate-300 hover:bg-slate-500/20 active:scale-95 transition-all"
-          >
+          <button onClick={() => setMenu(true)} aria-label={t.menu} title={`${t.menu} (M)`} aria-keyshortcuts="M" className={footerButton}>
             <House className="w-4 h-4 shrink-0" />
             <span>{t.menu}</span>
           </button>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Dumbbell, House, RotateCcw, Share2, Trophy } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { Dumbbell, House, RotateCcw, Share2 } from "lucide-react";
 import { flagUrl, type Country } from "@/lib/countries";
 import type { GameState } from "@/lib/game";
 import { countryName, type Lang, type Strings } from "@/lib/i18n";
@@ -10,6 +10,46 @@ const formatTime = (ms: number) => {
   const s = Math.round(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
+
+// Counts up from 0 to the value with an ease-out, starting after a delay
+function CountUp({ to, delay = 0, suffix = "" }: { to: number; delay?: number; suffix?: string }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return setN(to);
+    let frame = 0;
+    const start = performance.now() + delay;
+    const tick = (now: number) => {
+      const p = Math.min(Math.max((now - start) / 900, 0), 1);
+      setN(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [to, delay]);
+  return <>{n}{suffix}</>;
+}
+
+// Round rubber stamp with the result title running around its rim
+function Seal({ text, accuracy }: { text: string; accuracy: number }) {
+  const rim = `${text} · ${text} · `.toLocaleUpperCase();
+  return (
+    <svg viewBox="0 0 120 120" className="w-28 h-28 sm:w-32 sm:h-32 text-seal animate-stamp" style={{ animationDelay: "0.25s" }} aria-hidden>
+      <defs>
+        <path id="seal-rim" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0" />
+      </defs>
+      <circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" strokeWidth="2.5" />
+      <circle cx="60" cy="60" r="34" fill="none" stroke="currentColor" strokeWidth="1" />
+      <text fill="currentColor" fontSize="9.5" letterSpacing="2" fontFamily="var(--font-mono)">
+        <textPath href="#seal-rim" textLength="270">{rim}</textPath>
+      </text>
+      <text x="60" y="67" textAnchor="middle" fill="currentColor" fontSize="22" fontFamily="var(--font-display)" fontStyle="italic">
+        {accuracy}%
+      </text>
+    </svg>
+  );
+}
+
+const rise = (i: number) => ({ "--i": i }) as CSSProperties;
 
 export function GameSummary({
   t,
@@ -50,37 +90,44 @@ export function GameSummary({
   const title = game.daily ? t.dailyDone : game.practice ? t.practiceDone : game.timeLimit ? t.timeUp : t.congrats;
   const subtitle = game.daily ? game.daily : game.practice ? t.practiceAllDone : game.timeLimit ? t.foundInTime(game.score) : t.allDone;
 
-  const stats = [
-    [game.score, t.correctCount, "text-green-400"],
-    [game.attempts, t.attemptsCount, "text-foreground"],
-    [`${accuracy}%`, t.accuracy, "text-yellow-400"],
-    ...(game.timeLimit ? [] : [[formatTime((game.endedAt ?? game.startedAt) - game.startedAt), t.time, "text-foreground"]]),
-  ] as const;
+  const stats: [string, React.ReactNode][] = [
+    [t.correctCount, <CountUp key="c" to={game.score} delay={400} />],
+    [t.attemptsCount, <CountUp key="a" to={game.attempts} delay={500} />],
+    [t.accuracy, <CountUp key="p" to={accuracy} delay={600} suffix="%" />],
+    ...(game.timeLimit ? [] : [[t.time, formatTime((game.endedAt ?? game.startedAt) - game.startedAt)] as [string, React.ReactNode]]),
+  ];
+
+  const button = "plate flex items-center justify-center gap-2 px-5 py-3 rounded-sm font-semibold text-sm";
 
   return (
-    <div className="absolute inset-0 bg-background/90 flex items-center justify-center z-20 px-4 overflow-y-auto">
-      <div className="bg-card p-6 sm:p-8 rounded-xl border border-border text-center w-full max-w-sm shadow-2xl my-4">
-        <Trophy className="w-14 h-14 text-yellow-400 mx-auto mb-3" />
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">{title}</h2>
-        <p className="text-muted-foreground text-sm mb-5">{subtitle}</p>
-
-        <div className="flex justify-center gap-5 mb-4">
-          {stats.map(([value, label, color]) => (
-            <div key={label} className="text-center">
-              <p className={`text-2xl font-bold tabular-nums ${color}`}>{value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-            </div>
-          ))}
+    <div className="absolute inset-0 z-20 flex items-center justify-center px-4 py-6 overflow-y-auto overflow-x-hidden bg-ink/25 backdrop-blur-[2px] animate-fade">
+      <div className="relative bg-paper neatline shadow-[8px_8px_0_var(--ink)] w-full max-w-md p-7 sm:p-9 my-auto animate-sheet">
+        <div className="absolute -top-8 -right-2 sm:-top-10 sm:-right-10">
+          <Seal text={title} accuracy={accuracy} />
         </div>
 
-        {share && <p className="text-lg tracking-wider mb-4">{share.split("\n")[1]}</p>}
+        <p className="smallcaps text-ink-soft animate-rise" style={rise(1)}>{subtitle}</p>
+        <h2 className="font-display text-4xl sm:text-5xl leading-[0.95] mt-1 pr-16 animate-rise" style={rise(2)}>{title}</h2>
+
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 mt-6 py-4 border-y border-ink animate-rise" style={rise(3)}>
+          {stats.map(([label, value]) => (
+            <div key={label}>
+              <dt className="smallcaps text-ink-soft">{label}</dt>
+              <dd className="font-display text-3xl tabular-nums leading-tight">{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {share && <p className="text-xl tracking-[0.2em] mt-4 animate-rise" style={rise(4)}>{share.split("\n")[1]}</p>}
 
         {!game.practice && !game.daily && best !== undefined && (
-          <p className="text-sm mb-4">
+          <p className="mt-4 animate-rise" style={rise(4)}>
             {newRecord ? (
-              <span className="font-semibold text-yellow-400">{t.newRecord}</span>
+              <span className="inline-block font-display italic text-xl text-paper bg-seal px-3 py-0.5 -rotate-2 animate-stamp" style={{ animationDelay: "0.9s" }}>
+                {t.newRecord}
+              </span>
             ) : (
-              <span className="text-muted-foreground">
+              <span className="smallcaps text-ink-soft">
                 {t.best}: {game.timeLimit ? best : `${best}%`}
               </span>
             )}
@@ -88,17 +135,18 @@ export function GameSummary({
         )}
 
         {mostMissed.length > 0 && (
-          <div className="text-left mb-5">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">{t.mostMissed}</p>
-            <ul className="flex flex-col gap-1">
-              {mostMissed.map(([code, n]) => {
+          <div className="mt-6">
+            <p className="smallcaps text-ink-soft mb-2 animate-rise" style={rise(5)}>{t.mostMissed}</p>
+            <ul className="flex flex-col">
+              {mostMissed.map(([code, n], i) => {
                 const c = byCode.get(code);
                 if (!c) return null;
                 return (
-                  <li key={code} className="flex items-center gap-2 text-sm text-foreground">
-                    <img src={flagUrl(c.code2)} alt="" width={21} height={14} className="rounded-sm object-cover" style={{ width: 21, height: 14 }} />
-                    <span className="flex-1 truncate">{countryName(c, lang)}</span>
-                    <span className="text-red-400 tabular-nums">{n}</span>
+                  <li key={code} className="flex items-center gap-2.5 py-1 text-sm animate-rise" style={rise(6 + i)}>
+                    <img src={flagUrl(c.code2)} alt="" width={22} height={15} className="object-cover ring-1 ring-ink-faint" style={{ width: 22, height: 15 }} />
+                    <span className="truncate">{countryName(c, lang)}</span>
+                    <span className="flex-1 border-b border-dotted border-ink-soft/50 translate-y-1" />
+                    <span className="font-mono text-seal tabular-nums">{n}</span>
                   </li>
                 );
               })}
@@ -106,39 +154,29 @@ export function GameSummary({
           </div>
         )}
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 mt-7 animate-rise" style={rise(11)}>
           {share && (
-            <button
-              onClick={copyShare}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-green-600 text-white font-semibold text-sm hover:opacity-90 transition-opacity"
-            >
+            <button onClick={copyShare} className={`${button} !bg-verdigris text-paper`}>
               <Share2 className="w-4 h-4" />
               {copied ? t.copied : t.shareResult}
             </button>
           )}
-          <button
-            onClick={onPlayAgain}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
-          >
+          <button onClick={onPlayAgain} className={`${button} !bg-seal text-paper`}>
             <RotateCcw className="w-4 h-4" />
             {t.playAgain}
           </button>
-          {practiceCount > 0 && (
-            <button
-              onClick={onPractice}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-muted text-foreground font-semibold text-sm hover:bg-muted/70 transition-colors"
-            >
-              <Dumbbell className="w-4 h-4" />
-              {t.practice(practiceCount)}
+          <div className="grid sm:grid-cols-2 gap-3">
+            {practiceCount > 0 && (
+              <button onClick={onPractice} className={button}>
+                <Dumbbell className="w-4 h-4 shrink-0" />
+                <span className="truncate">{t.practice(practiceCount)}</span>
+              </button>
+            )}
+            <button onClick={onMenu} className={`${button} ${practiceCount > 0 ? "" : "sm:col-span-2"}`}>
+              <House className="w-4 h-4" />
+              {t.menu}
             </button>
-          )}
-          <button
-            onClick={onMenu}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-muted-foreground font-semibold text-sm hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <House className="w-4 h-4" />
-            {t.menu}
-          </button>
+          </div>
         </div>
       </div>
     </div>

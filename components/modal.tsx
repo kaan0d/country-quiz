@@ -24,18 +24,23 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-ink/40 backdrop-blur-[2px] animate-fade"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div role="dialog" aria-modal="true" aria-label={title} className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="bg-paper neatline w-full max-w-2xl max-h-[88svh] flex flex-col shadow-[6px_6px_0_var(--ink)] animate-sheet"
+      >
+        <div className="flex items-end justify-between gap-4 mx-6 pt-6 pb-3 border-b border-ink shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-foreground">{title}</h2>
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="smallcaps text-ink-soft mb-1">{subtitle}</p>}
+            <h2 className="font-display text-3xl leading-none">{title}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="p-2 -mr-2 rounded-full text-ink-soft hover:text-seal hover:rotate-90 transition-all duration-300"
             aria-label={closeLabel}
           >
             <X className="w-5 h-5" />
@@ -52,9 +57,9 @@ export function Chip({ active, onClick, children }: { active: boolean; onClick: 
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${active
-        ? "bg-primary text-primary-foreground"
-        : "bg-muted text-muted-foreground hover:text-foreground"
+      className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 ${active
+        ? "bg-ink text-paper border-ink"
+        : "border-ink-faint text-ink-soft hover:border-ink hover:text-ink"
         }`}
     >
       {children}

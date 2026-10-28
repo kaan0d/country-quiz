@@ -38,8 +38,9 @@ interface WorldMapProps {
   heat?: Record<string, number>; // explore view: open countries are tinted by lifetime misses
 }
 
-// 0 misses is the normal open color, 5 or more is full red
-const heatFill = (n: number) => `color-mix(in srgb, #ef4444 ${Math.min(n, 5) * 20}%, #334155)`;
+// 0 misses is the normal open color, 5 or more is full seal red
+const heatFill = (n: number) => `color-mix(in oklch, var(--seal) ${Math.min(n, 5) * 20}%, var(--land))`;
+const darker = (color: string) => `color-mix(in oklch, ${color} 82%, var(--ink))`;
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 48;
@@ -74,13 +75,14 @@ const homePosition = (view: View) => ({
   zoom: 1,
 });
 
+// Countries outside the game are hatched, like unsurveyed land on an old map
 const FILL = {
-  off: ["#1e293b", "#1e293b"],
-  correct: ["#22c55e", "#16a34a"],
-  target: ["#eab308", "#ca8a04"],
-  wrong: ["#ef4444", "#dc2626"],
-  done: ["#166534", "#15803d"],
-  open: ["#334155", "#64748b"],
+  off: ["url(#hatch)", "url(#hatch)"],
+  correct: ["var(--verdigris)", darker("var(--verdigris)")],
+  target: ["var(--ochre)", darker("var(--ochre)")],
+  wrong: ["var(--seal)", darker("var(--seal)")],
+  done: ["var(--done)", darker("var(--done)")],
+  open: ["var(--land)", "var(--paper-deep)"],
 } as const;
 
 function WorldMapComponent({
@@ -283,8 +285,15 @@ function WorldMapComponent({
           width={size.w}
           height={size.h}
           className="w-full h-full select-none"
-          style={{ background: "#0f172a" }}
+          style={{ background: "var(--ocean)" }}
         >
+          {/* Hatch spacing divided by zoom so the lines keep the same screen size */}
+          <defs>
+            <pattern id="hatch" patternUnits="userSpaceOnUse" width={4 / position.zoom} height={4 / position.zoom} patternTransform="rotate(45)">
+              <rect width="100%" height="100%" fill="var(--land-off)" />
+              <line x1="0" y1="0" x2="0" y2={4 / position.zoom} stroke="var(--ink)" strokeOpacity={0.22} strokeWidth={1 / position.zoom} />
+            </pattern>
+          </defs>
           <ZoomableGroup
             center={position.coordinates}
             zoom={position.zoom}
@@ -294,8 +303,8 @@ function WorldMapComponent({
               setPosition({ coordinates: coordinates as [number, number], zoom })
             }
           >
-            <Sphere id="ocean" fill="#0f172a" stroke="#1e293b" strokeWidth={0.5} />
-            <Graticule stroke="#1e293b" strokeWidth={0.3} />
+            <Sphere id="ocean" fill="var(--ocean)" stroke="var(--ink)" strokeWidth={0.5} />
+            <Graticule stroke="var(--ink)" strokeOpacity={0.12} strokeWidth={0.3} />
 
             <Geographies geography={geoUrl}>
               {({ geographies }) => {
@@ -306,18 +315,18 @@ function WorldMapComponent({
                     const st = status(a3);
                     const clickable = isClickable(st);
                     const fill = heat && st === "open" && a3 !== hovered ? heatFill(heat[a3!] ?? 0) : FILL[st][clickable && a3 === hovered ? 1 : 0];
-                    const stroke = st === "done" ? "#4ade80" : "#1e293b";
-                    const style = { fill, stroke, strokeWidth: 0.05, outline: "none", cursor: clickable ? "pointer" : "default" };
+                    const style = { fill, stroke: "var(--ink)", strokeOpacity: 0.55, strokeWidth: 0.5, vectorEffect: "non-scaling-stroke" as const, outline: "none", cursor: clickable ? "pointer" : "default" };
                     return (
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
+                        className={st === "target" ? "geo-target" : undefined}
                         onMouseEnter={() => setHovered(a3)}
                         onMouseLeave={() => setHovered(null)}
                         onClick={() => {
                           if (clickable && a3 && !gesture.current.hasMoved) onCountryClick(a3);
                         }}
-                        style={{ default: { ...style, transition: "fill 0.15s" }, hover: style, pressed: style }}
+                        style={{ default: { ...style, transition: "fill 0.35s" }, hover: style, pressed: style }}
                       />
                     );
                   }),
@@ -329,7 +338,7 @@ function WorldMapComponent({
                       <Geography
                         key={`hover-${geo.rsmKey}`}
                         geography={geo}
-                        style={{ default: { fill: "none", stroke: "#ffffff", strokeWidth: 1.5, vectorEffect: "non-scaling-stroke", pointerEvents: "none", outline: "none" } }}
+                        style={{ default: { fill: "none", stroke: "var(--ink)", strokeWidth: 2, vectorEffect: "non-scaling-stroke", pointerEvents: "none", outline: "none" } }}
                       />
                     )),
                 ];
@@ -348,8 +357,9 @@ function WorldMapComponent({
                   <circle
                     r={4 / position.zoom}
                     fill={heat && st === "open" && !isHovered ? heatFill(heat[a3] ?? 0) : FILL[st][isHovered ? 1 : 0]}
-                    stroke={isHovered ? "#ffffff" : "#94a3b8"}
-                    strokeWidth={0.8 / position.zoom}
+                    stroke="var(--ink)"
+                    className={st === "target" ? "geo-target" : undefined}
+                    strokeWidth={(isHovered ? 2 : 1) / position.zoom}
                     style={{ cursor: clickable ? "pointer" : "default" }}
                     onMouseEnter={() => setHovered(a3)}
                     onMouseLeave={() => setHovered(null)}
@@ -365,10 +375,11 @@ function WorldMapComponent({
               <Marker coordinates={hintCircle.center}>
                 <circle
                   r={hintCircle.radius * view.ppd}
-                  fill="rgba(234,179,8,0.08)"
-                  stroke="#eab308"
-                  strokeWidth={1.5}
-                  strokeDasharray="6 3"
+                  className="hint-ring"
+                  fill="color-mix(in oklch, var(--seal) 8%, transparent)"
+                  stroke="var(--seal)"
+                  strokeWidth={2 / position.zoom}
+                  strokeDasharray={`${8 / position.zoom} ${4 / position.zoom}`}
                   style={{ pointerEvents: "none" }}
                 />
               </Marker>

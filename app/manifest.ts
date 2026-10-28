@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Dünyadaki tüm ülkeleri öğrenin - interaktif harita oyunu",
     start_url: `${BASE}/`,
     display: "standalone",
-    background_color: "#0f172a",
-    theme_color: "#0f172a",
+    background_color: "#f5efe1",
+    theme_color: "#f5efe1",
     icons: [{ src: `${BASE}/icon.svg`, sizes: "any", type: "image/svg+xml" }],
   };
 }
