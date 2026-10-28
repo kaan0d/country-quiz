@@ -26,8 +26,8 @@ const STATS_KEY = "countryQuiz.stats";
 
 export type Mode = "name" | "flag" | "capital" | "reverse" | "typed" | "neighbors";
 
-// Modes where the country is marked on the map and the player names it
-const isMarked = (m: Mode) => m === "reverse" || m === "typed";
+// Modes where the country is marked on the map and the player names it (or, in neighbours mode, a neighbour)
+const isMarked = (m: Mode) => m === "reverse" || m === "typed" || m === "neighbors";
 
 export type Settings = {
   lang: Lang;
@@ -81,7 +81,7 @@ export function CountryGame() {
   const [picked, setPicked] = useState<string | null>(null); // country tapped in the explore view
   const [typed, setTyped] = useState("");
   const [unknownName, setUnknownName] = useState(false);
-  const [lastPick, setLastPick] = useState<string | null>(null); // the neighbour clicked in neighbours mode
+  const [lastPick, setLastPick] = useState<string | null>(null); // the neighbour named in neighbours mode
   const recorded = useRef<number | null>(null); // startedAt of the last game added to stats
   const { lang, showWrongAnswer } = settings;
   const t = strings[lang];
@@ -208,7 +208,7 @@ export function CountryGame() {
         if (key === "escape") closeExplore();
         return;
       }
-      if (key === "h" && !isMarked(settings.mode) && settings.mode !== "neighbors") dispatch({ type: "hint" });
+      if (key === "h" && !isMarked(settings.mode)) dispatch({ type: "hint" });
       else if (key === "s") dispatch({ type: "skip" });
       else if (key === "n") start(settings);
       else if (key === "m") setMenu(true);
@@ -249,7 +249,7 @@ export function CountryGame() {
   const wrongCenter = lastWrong && countryCenters[lastWrong.code];
   const answerCenter = current && countryCenters[current.code];
   const marked = isMarked(mode);
-  const off = !marked && mode !== "neighbors" && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
+  const off = !marked && wrongCenter && answerCenter ? offBy(wrongCenter, answerCenter) : null;
   const [flagW, flagH] = mode === "flag" ? [96, 64] : [64, 43];
 
   return (
@@ -337,7 +337,7 @@ export function CountryGame() {
           onCountryClick={answer}
           playable={playable}
           focus={region === "all" ? null : continentBounds[region]}
-          // Done countries are not clickable, but in neighbours mode they are still answers
+          // Done countries are greyed out, but in neighbours mode they are still answers
           done={mode === "neighbors" ? [] : game.done}
           wrong={game.wrong}
           correct={game.phase !== "correct" ? null : mode === "neighbors" ? lastPick : game.queue[0]}
@@ -381,12 +381,13 @@ export function CountryGame() {
           </div>
         )}
 
-        {mode === "typed" && !gameComplete && !exploring && current && (
+        {(mode === "typed" || mode === "neighbors") && !gameComplete && !exploring && current && (
           <form
             className="absolute bottom-2 inset-x-2 z-10 max-w-sm mx-auto flex flex-col gap-1"
             onSubmit={(e) => {
               e.preventDefault();
-              const code = matchTyped(typed, current, countries);
+              const answers = mode === "neighbors" ? (neighbors[current.code] ?? []).flatMap((n) => byCode.get(n) ?? []) : [current];
+              const code = matchTyped(typed, answers, countries);
               setUnknownName(!code && !!typed.trim());
               if (code) {
                 answer(code);
@@ -494,7 +495,7 @@ export function CountryGame() {
 
           <button
             onClick={() => dispatch({ type: "hint" })}
-            disabled={!playing || game.hintUsed || marked || mode === "neighbors"}
+            disabled={!playing || game.hintUsed || marked}
             aria-label={t.hint}
             title={`${t.hintCost} (H)`}
             aria-keyshortcuts="H"
