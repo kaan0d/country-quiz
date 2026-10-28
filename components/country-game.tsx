@@ -80,7 +80,7 @@ export function CountryGame() {
   const [exploring, setExploring] = useState(false);
   const [picked, setPicked] = useState<string | null>(null); // country tapped in the explore view
   const [typed, setTyped] = useState("");
-  const [unknownName, setUnknownName] = useState(false);
+  const [typedNote, setTypedNote] = useState<string | null>(null); // why a typed name was not taken
   const [lastPick, setLastPick] = useState<string | null>(null); // the neighbour named in neighbours mode
   const recorded = useRef<number | null>(null); // startedAt of the last game added to stats
   const { lang, showWrongAnswer } = settings;
@@ -388,19 +388,21 @@ export function CountryGame() {
               e.preventDefault();
               const answers = mode === "neighbors" ? (neighbors[current.code] ?? []).flatMap((n) => byCode.get(n) ?? []) : [current];
               const code = matchTyped(typed, answers, countries);
-              setUnknownName(!code && !!typed.trim());
-              if (code) {
+              // In neighbours mode the asked country itself is not an answer; say so instead of a silent no-op
+              const same = mode === "neighbors" && code === current.code;
+              setTypedNote(same ? t.sameCountry : !code && typed.trim() ? t.unknownName : null);
+              if (code && !same) {
                 answer(code);
                 setTyped("");
               }
             }}
           >
-            {unknownName && <p className="text-xs text-red-400 bg-card/90 rounded px-2 py-1 self-start">{t.unknownName}</p>}
+            {typedNote && <p className="text-xs text-red-400 bg-card/90 rounded px-2 py-1 self-start">{typedNote}</p>}
             <input
               value={typed}
               onChange={(e) => {
                 setTyped(e.target.value);
-                setUnknownName(false);
+                setTypedNote(null);
               }}
               disabled={!playing}
               ref={(el) => { if (el && playing && !modalOpen) el.focus(); }}
